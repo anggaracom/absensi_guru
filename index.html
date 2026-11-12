@@ -6,65 +6,232 @@
   <title>EduAbsen Pro - Sistem Presensi Guru Modern</title>
   
   <!-- Bootstrap 5.3 CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-  <!-- Google Fonts: Inter -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- SweetAlert2 CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+  <!-- SheetJS (xlsx) untuk Export Excel (.xlsx) Rapi -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <style>
     :root {
-      --primary-color: #4f46e5;
-      --primary-hover: #4338ca;
-      --secondary-color: #06b6d4;
-      --accent-color: #10b981;
-      --dark-bg: #0f172a;
-      --card-radius: 16px;
+      --primary: #0d6efd;
+      --primary-dark: #0b5ed7;
+      --primary-light: #e8f0fe;
+      --text-dark: #1b2437;
+      --text-muted: #6b7688;
+      --sidebar-width: 260px;
+      --radius: 20px;
     }
 
+    * { box-sizing: border-box; }
+
     body {
-      font-family: 'Inter', sans-serif;
-      background-color: #f8fafc;
-      color: #1e293b;
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background: #f4f6fb;
+      color: var(--text-dark);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    a { text-decoration: none; }
+
+    /* ===== SIDEBAR ===== */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      width: var(--sidebar-width);
+      background: #ffffff;
+      box-shadow: 2px 0 24px rgba(20,30,60,.08);
+      padding: 24px 18px;
+      display: flex;
+      flex-direction: column;
+      transition: transform .35s cubic-bezier(.4,0,.2,1);
+      z-index: 1050;
+      overflow-y: auto;
+    }
+
+    .sidebar.collapsed {
+      transform: translateX(-100%);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 6px 8px 22px 8px;
+      border-bottom: 1px solid #eef1f6;
+      margin-bottom: 18px;
+    }
+
+    .brand-text h1 {
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: .5px;
+      margin: 0;
+      line-height: 1.1;
+      color: var(--text-dark);
+    }
+
+    .brand-text p {
+      font-size: .72rem;
+      color: var(--text-muted);
+      margin: 3px 0 0 0;
+      line-height: 1.25;
+    }
+
+    .btn-close-sidebar {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: #f4f6fb;
+      border: 1px solid #e5e9f2;
+      color: var(--text-dark);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all .2s ease;
+    }
+
+    .btn-close-sidebar:hover {
+      background: #fee2e2;
+      color: #dc2626;
+      border-color: #fecaca;
+    }
+
+    .nav-menu {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .nav-menu li + li { margin-top: 6px; }
+
+    .nav-link-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 14px;
+      border-radius: 12px;
+      color: var(--text-dark);
+      font-weight: 500;
+      font-size: .92rem;
+      transition: background .2s ease, color .2s ease;
+      cursor: pointer;
+    }
+
+    .nav-link-item i { font-size: 1.15rem; width: 22px; text-align: center; }
+
+    .nav-link-item:hover {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    .nav-link-item.active {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 10px 20px rgba(13,110,253,.28);
+    }
+
+    /* ===== MAIN WRAPPER ===== */
+    .main-wrapper {
+      margin-left: var(--sidebar-width);
+      transition: margin-left .35s cubic-bezier(.4,0,.2,1);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
     }
 
-    /* Modern Scrollbar */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 4px;
+    .main-wrapper.full {
+      margin-left: 0;
     }
 
-    /* Glassmorphism & Card Styling */
-    .glass-card {
-      background: rgba(255, 255, 255, 0.9);
+    /* ===== TOPBAR ===== */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 1030;
+      background: rgba(244,246,251,.9);
       backdrop-filter: blur(10px);
-      border: 1px solid rgba(226, 232, 240, 0.8);
-      border-radius: var(--card-radius);
-      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+      padding: 16px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(226, 232, 240, 0.6);
     }
 
-    .badge-soft-primary { background: #e0e7ff; color: #3730a3; }
-    .badge-soft-success { background: #d1fae5; color: #065f46; }
-    .badge-soft-warning { background: #fef3c7; color: #92400e; }
-    .badge-soft-danger  { background: #fee2e2; color: #991b1b; }
+    .toggle-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: #fff;
+      border: 1px solid #e9ecf3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      color: var(--text-dark);
+      box-shadow: 0 4px 12px rgba(20,30,60,.05);
+      cursor: pointer;
+      transition: background .2s ease, transform .15s ease;
+    }
+
+    .toggle-btn:hover { background: var(--primary-light); color: var(--primary); }
+    .toggle-btn:active { transform: scale(.95); }
+
+    .topbar-right { display: flex; align-items: center; gap: 15px; }
+
+    .profile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+
+    .profile img {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #fff;
+      box-shadow: 0 4px 12px rgba(20,30,60,.1);
+    }
+
+    .profile-info { line-height: 1.15; }
+    .profile-info .name { font-weight: 700; font-size: .9rem; }
+    .profile-info .role { font-size: .75rem; color: var(--text-muted); }
+
+    /* ===== CONTENT ===== */
+    .content { padding: 20px 28px 40px 28px; flex-grow: 1; }
+
+    .glass-card {
+      background: #ffffff;
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(20,30,60,.05);
+      border: 1px solid #eef1f6;
+    }
 
     /* Scanner Viewport Overlay */
     .scanner-container {
       position: relative;
       width: 100%;
-      max-width: 360px;
-      height: 360px;
+      max-width: 340px;
+      height: 340px;
       margin: 0 auto;
-      border-radius: 24px;
+      border-radius: 20px;
       overflow: hidden;
       background: #000;
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
@@ -74,7 +241,7 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
-      transform: scaleX(-1); /* Mirror camera */
+      transform: scaleX(-1);
     }
 
     .face-overlay {
@@ -82,8 +249,8 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 220px;
-      height: 260px;
+      width: 200px;
+      height: 240px;
       border: 2px dashed rgba(255, 255, 255, 0.6);
       border-radius: 50% 50% 45% 45%;
       box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.5);
@@ -123,7 +290,7 @@
       border-top: 1px solid #e2e8f0;
       display: flex;
       justify-content: space-around;
-      padding: 8px 0;
+      padding: 10px 0;
       z-index: 1030;
       box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.04);
     }
@@ -139,7 +306,7 @@
     }
 
     .mobile-nav-item.active {
-      color: var(--primary-color);
+      color: var(--primary);
       font-weight: 600;
     }
 
@@ -148,352 +315,286 @@
       margin-bottom: 2px;
     }
 
-    /* Admin Sidebar Layout */
-    .sidebar {
-      min-height: calc(100vh - 60px);
-      background: #ffffff;
-      border-right: 1px solid #e2e8f0;
+    .sidebar-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,20,35,.45);
+      z-index: 1045;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .3s ease;
     }
+    .sidebar-overlay.show { opacity: 1; pointer-events: auto; }
 
-    .nav-link-custom {
-      color: #475569;
-      padding: 12px 20px;
-      border-radius: 10px;
-      margin-bottom: 4px;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      transition: all 0.2s;
-    }
-
-    .nav-link-custom:hover, .nav-link-custom.active {
-      background: #eeef2a1a;
-      background-color: #e0e7ff;
-      color: var(--primary-color);
-    }
-
-    /* Custom Responsive Tweaks */
-    @media (max-width: 767.98px) {
-      .main-content {
-        padding-bottom: 75px; /* Space for bottom nav */
-      }
+    @media (max-width:991.98px){
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.mobile-open { transform: translateX(0); }
+      .main-wrapper { margin-left: 0 !important; }
+      .profile-info { display: none; }
+      .topbar { padding: 14px 18px; }
+      .content { padding: 16px 18px 36px 18px; }
     }
   </style>
 </head>
 <body>
 
-  <!-- Top Navbar -->
-  <nav class="navbar navbar-expand-lg sticky-top bg-white border-bottom shadow-sm py-2">
-    <div class="container-fluid px-3 px-lg-4">
-      <a class="navbar-brand d-flex align-items-center gap-2 fw-bold text-indigo" href="#">
-        <div class="bg-primary text-white rounded-3 px-2 py-1 fs-5">
-          <i class="fa-solid me-0 fa-user-check"></i>
-        </div>
-        <span class="fs-5" style="color: var(--primary-color);">EduAbsen <span class="badge bg-indigo text-primary border border-primary fs-6 fw-semibold">PRO</span></span>
-      </a>
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
 
-      <div class="d-flex align-items-center gap-3">
-        <span id="sessionStatusBadge" class="badge badge-soft-warning d-none d-md-inline-block px-3 py-2">
-          <i class="fa-solid fa-database me-1"></i> Mode Simulasi LocalStorage
-        </span>
-        <div id="userMenuDropdown" class="dropdown d-none">
-          <button class="btn btn-light rounded-pill border dropdown-toggle d-flex align-items-center gap-2 py-1 px-3" type="button" data-bs-toggle="dropdown">
-            <i class="fa-solid fa-circle-user text-primary fs-5"></i>
-            <span id="navUserName" class="fw-semibold small">Nama User</span>
+  <!-- 1. LOGIN SECTION -->
+  <div id="loginSection" class="container-fluid min-vh-100 d-flex justify-content-center align-items-center bg-light p-3">
+    <div class="card border-0 shadow-lg rounded-4 p-4 p-md-5" style="width: 100%; max-width: 420px; background: #ffffff;">
+      <div class="text-center mb-4">
+        <div class="d-inline-flex p-3 rounded-circle bg-primary bg-opacity-10 text-primary mb-3">
+          <i class="fa-solid fa-school-flag fs-2"></i>
+        </div>
+        <h4 class="fw-bold mb-1" style="color: var(--text-dark);">EduAbsen Pro</h4>
+        <p class="text-muted small">Sistem Presensi Guru Berbasis Jadwal Mengajar</p>
+      </div>
+
+      <div class="bg-light p-1 rounded-pill mb-4 d-flex">
+        <button type="button" id="roleBtnGuru" class="btn btn-primary rounded-pill flex-fill fw-semibold btn-sm py-2 shadow-sm" onclick="switchLoginRole('guru')">
+          <i class="fa-solid fa-chalkboard-user me-1"></i> Guru / Staf
+        </button>
+        <button type="button" id="roleBtnAdmin" class="btn btn-light rounded-pill flex-fill fw-semibold btn-sm py-2 text-muted" onclick="switchLoginRole('admin')">
+          <i class="fa-solid fa-user-gear me-1"></i> Administrator
+        </button>
+      </div>
+
+      <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="mb-3">
+          <label class="form-label small fw-bold text-secondary" id="loginLabelId">Username Guru (Nama Lengkap)</label>
+          <div class="input-group">
+            <span class="input-group-text bg-white border-end-0 text-muted rounded-start-3"><i class="fa-solid fa-user"></i></span>
+            <input type="text" id="loginIdInput" class="form-control border-start-0 ps-0 bg-white" placeholder="Contoh: TIO ANGGARA" required>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label small fw-bold text-secondary" id="loginLabelPassword">Kata Sandi (Tanggal Lahir: DDMMYYYY)</label>
+          <div class="input-group">
+            <span class="input-group-text bg-white border-end-0 text-muted rounded-start-3"><i class="fa-solid fa-lock"></i></span>
+            <input type="password" id="loginPasswordInput" class="form-control border-start-0 ps-0 bg-white" placeholder="Contoh: 20122004" required>
+          </div>
+          <div class="form-text small">Gunakan format TanggalBulanTahun tanpa spasi (cth: 20122004)</div>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 py-2.5 rounded-3 fw-semibold shadow-sm">
+          <i class="fa-solid fa-right-to-bracket me-2"></i> Masuk Sekarang
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. ADMIN DASHBOARD WRAPPER -->
+  <div id="adminSection" class="d-none w-100">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="d-flex align-items-center gap-2">
+          <div class="bg-primary text-white rounded-3 d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+            <i class="fa-solid fa-user-check"></i>
+          </div>
+          <div class="brand-text">
+            <h1>EduAbsen</h1>
+            <p>Presensi Guru</p>
+          </div>
+        </div>
+        <button type="button" class="btn-close-sidebar" id="closeSidebarBtn" onclick="toggleSidebar()" title="Tutup Menu">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+
+      <ul class="nav-menu">
+        <li><a class="nav-link-item active" onclick="switchAdminTab('dashboard', this)"><i class="bi bi-house-fill"></i> Dashboard</a></li>
+        <li><a class="nav-link-item" onclick="switchAdminTab('guru', this)"><i class="bi bi-people-fill"></i> Data Guru & Jadwal</a></li>
+        <li><a class="nav-link-item" onclick="switchAdminTab('jadwal', this)"><i class="bi bi-clock-fill"></i> Jam Sekolah Umum</a></li>
+        <li><a class="nav-link-item" onclick="switchAdminTab('lokasi', this)"><i class="bi bi-geo-alt-fill"></i> Lokasi Sekolah</a></li>
+        <li><a class="nav-link-item" onclick="switchAdminTab('rekap', this)"><i class="bi bi-file-earmark-spreadsheet-fill"></i> Rekap Absensi</a></li>
+        <li><a class="nav-link-item" onclick="openGASConfigModal()"><i class="bi bi-cloud-arrow-up-fill"></i> Google Sheets API</a></li>
+      </ul>
+    </aside>
+
+    <div class="main-wrapper" id="mainWrapper">
+      <div class="topbar">
+        <div class="d-flex align-items-center gap-2">
+          <button type="button" class="toggle-btn" id="toggleBtn" onclick="toggleSidebar()" title="Buka / Tutup Menu">
+            <i class="bi bi-list"></i>
           </button>
-          <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-4 mt-2">
-            <li><a class="dropdown-item py-2" href="#" onclick="openGASConfigModal()"><i class="fa-solid fa-gear me-2 text-secondary"></i> Pengaturan API GAS</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item py-2 text-danger" href="#" onclick="logout()"><i class="fa-solid fa-right-from-bracket me-2"></i> Keluar (Logout)</a></li>
-          </ul>
+          <span class="fw-bold d-lg-none text-dark ms-1">EduAbsen Admin</span>
         </div>
-      </div>
-    </div>
-  </nav>
 
-  <!-- Container Utama -->
-  <div class="container-fluid flex-grow-1 main-content">
-    
-    <!-- 1. LOGIN SECTION -->
-    <div id="loginSection" class="row justify-content-center align-items-center min-vh-80 py-5">
-      <div class="col-12 col-sm-10 col-md-6 col-lg-4">
-        <div class="card glass-card border-0 p-4 p-md-5">
-          <div class="text-center mb-4">
-            <div class="bg-primary text-white d-inline-flex p-3 rounded-circle mb-3 shadow">
-              <i class="fa-solid fa-school-flag fs-2"></i>
-            </div>
-            <h4 class="fw-bold mb-1">Presensi Guru Digital</h4>
-            <p class="text-muted small">Silakan masuk sesuai hak akses akun Anda</p>
-          </div>
-
-          <!-- Toggle Role Pills -->
-          <div class="bg-light p-1 rounded-pill mb-4 d-flex">
-            <button type="button" id="roleBtnGuru" class="btn btn-primary rounded-pill flex-fill fw-semibold btn-sm py-2" onclick="switchLoginRole('guru')">
-              <i class="fa-solid fa-chalkboard-user me-1"></i> Guru / Staf
-            </button>
-            <button type="button" id="roleBtnAdmin" class="btn btn-light rounded-pill flex-fill fw-semibold btn-sm py-2 text-muted" onclick="switchLoginRole('admin')">
-              <i class="fa-solid fa-user-gear me-1"></i> Administrator
-            </button>
-          </div>
-
-          <form id="loginForm" onsubmit="handleLogin(event)">
-            <div class="mb-3">
-              <label class="form-label small fw-semibold" id="loginLabelNip">NIP / Identifier Guru</label>
-              <div class="input-group">
-                <span class="input-group-text bg-white border-end-0 text-muted"><i class="fa-solid fa-id-card"></i></span>
-                <span class="input-group-text bg-white border-end-0 text-muted" id="loginInputIcon"><i class="fa-solid fa-user"></i></span>
-                <input type="text" id="loginIdInput" class="form-control border-start-0 ps-0" placeholder="Masukkan NIP anda..." required>
+        <div class="topbar-right">
+          <span id="sessionStatusBadge" class="badge bg-warning text-dark d-none d-md-inline-block px-3 py-2">
+            <i class="fa-solid fa-database me-1"></i> Mode Simulasi LocalStorage
+          </span>
+          <div class="dropdown">
+            <div class="profile" data-bs-toggle="dropdown" aria-expanded="false">
+              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Admin&backgroundColor=b6e3f4" alt="Admin">
+              <div class="profile-info">
+                <div class="name" id="navUserName">Administrator</div>
+                <div class="role">Operator Sekolah</div>
               </div>
             </div>
-
-            <div class="mb-4">
-              <label class="form-label small fw-semibold">Kata Sandi (Password)</label>
-              <div class="input-group">
-                <span class="input-group-text bg-white border-end-0 text-muted"><i class="fa-solid fa-lock"></i></span>
-                <input type="password" id="loginPasswordInput" class="form-control border-start-0 ps-0" placeholder="••••••••" required>
-              </div>
-            </div>
-
-            <button type="submit" class="btn btn-primary w-full w-100 py-2.5 rounded-3 fw-semibold shadow-sm mb-3">
-              <i class="fa-solid fa-right-to-bracket me-2"></i> Masuk Sekarang
-            </button>
-          </form>
-
-          <!-- Quick Test Demo Info -->
-          <div class="alert alert-info border-0 rounded-3 mb-0 small p-3">
-            <div class="fw-bold mb-1"><i class="fa-solid fa-circle-info me-1"></i> Akun Simulasi Cepat:</div>
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <span>Admin: <b>admin</b> / <b>admin123</b></span>
-              <button class="btn btn-xs btn-outline-info py-0 px-2" onclick="quickFill('admin','admin123','admin')">Isi</button>
-            </div>
-            <div class="d-flex justify-content-between align-items-center">
-              <span>Guru: <b>19850101201001</b> / <b>guru123</b></span>
-              <button class="btn btn-xs btn-outline-info py-0 px-2" onclick="quickFill('19850101201001','guru123','guru')">Isi</button>
-            </div>
+            <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-4 mt-2">
+              <li><a class="dropdown-item py-2" href="#" onclick="openGASConfigModal()"><i class="fa-solid fa-gear me-2 text-secondary"></i> Pengaturan API GAS</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item py-2 text-danger" href="#" onclick="logout()"><i class="fa-solid fa-right-from-bracket me-2"></i> Keluar (Logout)</a></li>
+            </ul>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- 2. ADMIN DASHBOARD VIEW -->
-    <div id="adminSection" class="row d-none">
-      <!-- Sidebar Desktop -->
-      <div class="col-md-3 col-lg-2 sidebar py-3 d-none d-md-block">
-        <div class="nav flex-column nav-pills">
-          <a class="nav-link-custom active" href="#" onclick="switchAdminTab('dashboard', this)">
-            <i class="fa-solid fa-chart-pie"></i> Dashboard
-          </a>
-          <a class="nav-link-custom" href="#" onclick="switchAdminTab('guru', this)">
-            <i class="fa-solid fa-users"></i> Data Guru
-          </a>
-          <a class="nav-link-custom" href="#" onclick="switchAdminTab('jadwal', this)">
-            <i class="fa-solid fa-clock"></i> Jam & Hari Kerja
-          </a>
-          <a class="nav-link-custom" href="#" onclick="switchAdminTab('lokasi', this)">
-            <i class="fa-solid fa-map-location-dot"></i> Lokasi Sekolah
-          </a>
-          <a class="nav-link-custom" href="#" onclick="switchAdminTab('rekap', this)">
-            <i class="fa-solid fa-file-invoice"></i> Rekap Absensi
-          </a>
-          <a class="nav-link-custom" href="#" onclick="openGASConfigModal()">
-            <i class="fa-solid fa-cloud-arrow-up"></i> Google Sheets API
-          </a>
-        </div>
-      </div>
+      <div class="content">
 
-      <!-- Main Admin Content Area -->
-      <div class="col-md-9 col-lg-10 p-3 p-md-4">
-        
         <!-- Tab 1: Dashboard Stats -->
         <div id="adminTabDashboard" class="admin-tab-content">
-          <div class="d-flex justify-content-between align-items-center mb-4">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
             <div>
               <h4 class="fw-bold mb-0">Dashboard Ringkasan Admin</h4>
-              <p class="text-muted small mb-0">Pantau kehadiran guru dan staf sekolah secara terpusat</p>
+              <p class="text-muted small mb-0">Pantau kehadiran guru sesuai jadwal mengajar harian</p>
             </div>
-            <button class="btn btn-sm btn-outline-primary rounded-pill" onclick="refreshAdminData()">
+            <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="refreshAdminData()">
               <i class="fa-solid fa-rotate me-1"></i> Refresh Data
             </button>
           </div>
 
-          <!-- Cards Summary -->
-          <div class="row g-3 mb-4">
-            <div class="col-6 col-lg-3">
-              <div class="card glass-card border-0 p-3">
-                <div class="d-flex align-items-center gap-3">
-                  <div class="p-3 bg-primary text-white rounded-4">
-                    <i class="fa-solid fa-users fs-4"></i>
-                  </div>
-                  <div>
-                    <span class="text-muted small d-block">Total Guru</span>
-                    <h3 class="fw-bold mb-0" id="statTotalGuru">0</h3>
-                  </div>
+          <div class="row g-3 g-md-4 mb-4">
+            <div class="col-6 col-md-3">
+              <div class="glass-card d-flex align-items-center gap-3 p-3 p-md-4">
+                <div class="p-3 bg-primary bg-opacity-10 text-primary rounded-4 fs-4"><i class="bi bi-people-fill"></i></div>
+                <div>
+                  <h6 class="text-muted small mb-1">Total Guru</h6>
+                  <h3 class="fw-bold mb-0" id="statTotalGuru">0</h3>
                 </div>
               </div>
             </div>
-            <div class="col-6 col-lg-3">
-              <div class="card glass-card border-0 p-3">
-                <div class="d-flex align-items-center gap-3">
-                  <div class="p-3 bg-success text-white rounded-4">
-                    <i class="fa-solid fa-user-check fs-4"></i>
-                  </div>
-                  <div>
-                    <span class="text-muted small d-block">Hadir Hari Ini</span>
-                    <h3 class="fw-bold mb-0" id="statHadirHariIni">0</h3>
-                  </div>
+            <div class="col-6 col-md-3">
+              <div class="glass-card d-flex align-items-center gap-3 p-3 p-md-4">
+                <div class="p-3 bg-success bg-opacity-10 text-success rounded-4 fs-4"><i class="bi bi-person-check-fill"></i></div>
+                <div>
+                  <h6 class="text-muted small mb-1">Hadir Hari Ini</h6>
+                  <h3 class="fw-bold mb-0" id="statHadirHariIni">0</h3>
                 </div>
               </div>
             </div>
-            <div class="col-6 col-lg-3">
-              <div class="card glass-card border-0 p-3">
-                <div class="d-flex align-items-center gap-3">
-                  <div class="p-3 bg-warning text-white rounded-4">
-                    <i class="fa-solid fa-user-clock fs-4"></i>
-                  </div>
-                  <div>
-                    <span class="text-muted small d-block">Terlambat</span>
-                    <h3 class="fw-bold mb-0" id="statTerlambatHariIni">0</h3>
-                  </div>
+            <div class="col-6 col-md-3">
+              <div class="glass-card d-flex align-items-center gap-3 p-3 p-md-4">
+                <div class="p-3 bg-warning bg-opacity-10 text-warning rounded-4 fs-4"><i class="bi bi-clock-history"></i></div>
+                <div>
+                  <h6 class="text-muted small mb-1">Terlambat</h6>
+                  <h3 class="fw-bold mb-0" id="statTerlambatHariIni">0</h3>
                 </div>
               </div>
             </div>
-            <div class="col-6 col-lg-3">
-              <div class="card glass-card border-0 p-3">
-                <div class="d-flex align-items-center gap-3">
-                  <div class="p-3 bg-info text-white rounded-4">
-                    <i class="fa-solid fa-calendar-check fs-4"></i>
-                  </div>
-                  <div>
-                    <span class="text-muted small d-block">Hari Kerja Aktif</span>
-                    <h6 class="fw-bold mb-0 mt-1" id="statHariKerja">Senin - Sabtu</h6>
-                  </div>
+            <div class="col-6 col-md-3">
+              <div class="glass-card d-flex align-items-center gap-3 p-3 p-md-4">
+                <div class="p-3 bg-info bg-opacity-10 text-info rounded-4 fs-4"><i class="bi bi-calendar-check-fill"></i></div>
+                <div>
+                  <h6 class="text-muted small mb-1">Sistem Jadwal</h6>
+                  <h6 class="fw-bold mb-0 text-dark mt-1">Aktif Per Hari</h6>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Tabel Quick Absensi Hari ini -->
-          <div class="card glass-card border-0 p-4">
-            <h5 class="fw-bold mb-3"><i class="fa-solid fa-list-check me-2 text-primary"></i>Aktivitas Presensi Hari Ini</h5>
+          <div class="glass-card p-3 p-md-4">
+            <h5 class="fw-bold mb-3"><i class="bi bi-list-check text-primary me-2"></i>Aktivitas Presensi Hari Ini</h5>
             <div class="table-responsive">
               <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                   <tr>
-                    <th>NIP & Nama Guru</th>
+                    <th>Nama & Username Guru</th>
+                    <th>Jadwal Hari Ini</th>
                     <th>Waktu Masuk</th>
                     <th>Waktu Pulang</th>
-                    <th>Jarak (Meter)</th>
                     <th>Status</th>
                   </tr>
                 </thead>
-                <tbody id="tableTodayAttendance">
-                  <!-- JS Populate -->
-                </tbody>
+                <tbody id="tableTodayAttendance"></tbody>
               </table>
             </div>
           </div>
         </div>
 
-        <!-- Tab 2: Manajemen Guru -->
+        <!-- Tab 2: Manajemen Guru & Jadwal -->
         <div id="adminTabGuru" class="admin-tab-content d-none">
-          <div class="d-flex justify-content-between align-items-center mb-4">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
             <div>
-              <h4 class="fw-bold mb-0">Manajemen Data Guru</h4>
-              <p class="text-muted small mb-0">Kelola akun dan kredensial akses guru sekolah</p>
+              <h4 class="fw-bold mb-0">Manajemen Data Guru & Jadwal Mengajar</h4>
+              <p class="text-muted small mb-0">Atur username (nama) dan tanggal lahir (password format DDMMYYYY)</p>
             </div>
-            <button class="btn btn-primary rounded-pill" onclick="openModalGuru()">
-              <i class="fa-solid fa-plus me-1"></i> Tambah Guru Baru
+            <button class="btn btn-primary rounded-pill px-4" onclick="openModalGuru()">
+              <i class="bi bi-plus-lg me-1"></i> Tambah Guru Baru
             </button>
           </div>
 
-          <div class="card glass-card border-0 p-4">
+          <div class="glass-card p-3 p-md-4">
             <div class="table-responsive">
               <table class="table table-hover align-middle">
                 <thead class="table-light">
                   <tr>
-                    <th>NIP</th>
-                    <th>Nama Lengkap</th>
+                    <th>Nama (Username)</th>
                     <th>Jabatan</th>
-                    <th>Email</th>
-                    <th>No. WhatsApp</th>
+                    <th>Tanggal Lahir (Password)</th>
+                    <th>Hari Mengajar</th>
+                    <th>Jam Masuk / Pulang</th>
                     <th class="text-center">Aksi</th>
                   </tr>
                 </thead>
-                <tbody id="tableGuruBody">
-                  <!-- Dynamic JS -->
-                </tbody>
+                <tbody id="tableGuruBody"></tbody>
               </table>
             </div>
           </div>
         </div>
 
-        <!-- Tab 3: Atur Jam Masuk & Hari -->
+        <!-- Tab 3: Jam Sekolah Umum -->
         <div id="adminTabJadwal" class="admin-tab-content d-none">
-          <h4 class="fw-bold mb-1">Pengaturan Jam & Hari Kerja Guru</h4>
-          <p class="text-muted small mb-4">Sesuaikan jam masuk, toleransi Keterlambatan, dan jam pulang</p>
+          <h4 class="fw-bold mb-1">Pengaturan Jam Standar Sekolah</h4>
+          <p class="text-muted small mb-4">Toleransi keterlambatan dari jadwal guru</p>
 
-          <div class="card glass-card border-0 p-4 max-w-700">
+          <div class="glass-card p-4" style="max-width: 700px;">
             <form id="formJadwal" onsubmit="saveJadwal(event)">
-              <div class="row g-3 mb-3">
-                <div class="col-md-6">
-                  <label class="form-label fw-semibold small">Jam Masuk Sekolah</label>
-                  <input type="time" id="setJamMasuk" class="form-control" required>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label fw-semibold small">Jam Pulang Sekolah</label>
-                  <input type="time" id="setJamPulang" class="form-control" required>
-                </div>
-              </div>
-
               <div class="mb-4">
-                <label class="form-label fw-semibold small">Toleransi Keterlambatan (Menit)</label>
+                <label class="form-label fw-semibold small">Toleransi Keterlambatan Default (Menit)</label>
                 <input type="number" id="setToleransi" class="form-control" placeholder="15" min="0" required>
-                <div class="form-text">Batas menit dari jam masuk sebelum dianggap "Terlambat".</div>
+                <div class="form-text">Batas toleransi menit dari jam masuk guru sebelum dicatat terlambat.</div>
               </div>
-
               <button type="submit" class="btn btn-primary rounded-pill px-4">
-                <i class="fa-solid fa-floppy-disk me-2"></i> Simpan Jam Kerja
+                <i class="bi bi-save me-2"></i> Simpan Pengaturan
               </button>
             </form>
           </div>
         </div>
 
-        <!-- Tab 4: Pengaturan Titik Koordinat -->
+        <!-- Tab 4: Pengaturan Lokasi -->
         <div id="adminTabLokasi" class="admin-tab-content d-none">
           <h4 class="fw-bold mb-1">Pengaturan Titik Geofencing Sekolah</h4>
           <p class="text-muted small mb-4">Tentukan titik koordinat GPS dan batas radius valid presensi</p>
 
-          <div class="card glass-card border-0 p-4">
+          <div class="glass-card p-4">
             <form id="formLokasi" onsubmit="saveLokasi(event)">
               <div class="row g-3 mb-3">
                 <div class="col-md-5">
                   <label class="form-label fw-semibold small">Latitude Sekolah</label>
-                  <input type="text" id="setLat" class="form-control" placeholder="-6.200000" required>
+                  <input type="text" id="setLat" class="form-control" required>
                 </div>
                 <div class="col-md-5">
                   <label class="form-label fw-semibold small">Longitude Sekolah</label>
-                  <input type="text" id="setLng" class="form-control" placeholder="106.816666" required>
+                  <input type="text" id="setLng" class="form-control" required>
                 </div>
                 <div class="col-md-2">
                   <label class="form-label fw-semibold small">Radius (Meter)</label>
-                  <input type="number" id="setRadius" class="form-control" placeholder="100" min="10" required>
+                  <input type="number" id="setRadius" class="form-control" required>
                 </div>
               </div>
 
               <div class="d-flex gap-2 mb-3">
                 <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" onclick="getCurrentAdminLocation()">
-                  <i class="fa-solid fa-location-crosshairs me-1"></i> Gunakan Lokasi Saya Saat Ini
+                  <i class="bi bi-crosshair me-1"></i> Gunakan Lokasi Saya Saat Ini
                 </button>
               </div>
 
-              <div class="alert alert-light border rounded-3 mb-4 small">
-                <i class="fa-solid fa-circle-info text-primary me-2"></i>
-                Setiap presensi guru di luar radius ini akan ditolak secara otomatis oleh sistem.
-              </div>
-
               <button type="submit" class="btn btn-primary rounded-pill px-4">
-                <i class="fa-solid fa-floppy-disk me-2"></i> Simpan Lokasi Sekolah
+                <i class="bi bi-save me-2"></i> Simpan Lokasi Sekolah
               </button>
             </form>
           </div>
@@ -501,33 +602,26 @@
 
         <!-- Tab 5: Rekap Bulanan -->
         <div id="adminTabRekap" class="admin-tab-content d-none">
-          <div class="d-flex justify-content-between align-items-center mb-4">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
             <div>
               <h4 class="fw-bold mb-0">Rekapitulasi Absensi Bulanan</h4>
-              <p class="text-muted small mb-0">Unduh & Cetak laporan rekap kehadiran guru</p>
+              <p class="text-muted small mb-0">Unduh laporan rekap kehadiran guru dalam format Excel (.xlsx)</p>
             </div>
-            <button class="btn btn-success rounded-pill" onclick="exportExcelCSV()">
-              <i class="fa-solid fa-file-excel me-1"></i> Export Excel / CSV
+            <button class="btn btn-success rounded-pill px-4 shadow-sm" onclick="exportExcelXLSX()">
+              <i class="bi bi-file-earmark-excel-fill me-1"></i> Unduh Excel (.xlsx)
             </button>
           </div>
 
-          <div class="card glass-card border-0 p-4">
+          <div class="glass-card p-3 p-md-4">
             <div class="row g-3 mb-4">
               <div class="col-md-4">
                 <label class="form-label small fw-semibold">Pilih Bulan</label>
                 <select id="filterBulan" class="form-select" onchange="filterRekapData()">
-                  <option value="1">Januari</option>
-                  <option value="2">Februari</option>
-                  <option value="3">Maret</option>
-                  <option value="4">April</option>
-                  <option value="5">Mei</option>
-                  <option value="6">Juni</option>
-                  <option value="7">Juli</option>
-                  <option value="8">Agustus</option>
-                  <option value="9">September</option>
-                  <option value="10">Oktober</option>
-                  <option value="11">November</option>
-                  <option value="12">Desember</option>
+                  <option value="0">Semua Bulan</option>
+                  <option value="1">Januari</option><option value="2">Februari</option><option value="3">Maret</option>
+                  <option value="4">April</option><option value="5">Mei</option><option value="6">Juni</option>
+                  <option value="7">Juli</option><option value="8">Agustus</option><option value="9">September</option>
+                  <option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
                 </select>
               </div>
               <div class="col-md-4">
@@ -540,18 +634,16 @@
               <table class="table table-bordered align-middle" id="rekapTable">
                 <thead class="table-light">
                   <tr>
+                    <th>No</th>
                     <th>Tanggal</th>
-                    <th>NIP</th>
-                    <th>Nama Guru</th>
+                    <th>Nama Guru (Username)</th>
                     <th>Jam Masuk</th>
                     <th>Jam Pulang</th>
                     <th>Jarak (m)</th>
                     <th>Status</th>
                   </tr>
                 </thead>
-                <tbody id="rekapTableBody">
-                  <!-- JS Populate -->
-                </tbody>
+                <tbody id="rekapTableBody"></tbody>
               </table>
             </div>
           </div>
@@ -559,15 +651,15 @@
 
       </div>
     </div>
+  </div>
 
-    <!-- 3. GURU MOBILE-FIRST VIEW -->
-    <div id="guruSection" class="row justify-content-center d-none">
-      <div class="col-12 col-md-8 col-lg-5 px-3 py-3">
+  <!-- 3. GURU MOBILE-FIRST VIEW -->
+  <div id="guruSection" class="container py-4 pb-5 mb-4 d-none">
+    <div class="row justify-content-center">
+      <div class="col-12 col-md-8 col-lg-5">
         
-        <!-- Tab Guru: Presensi / Scanner -->
         <div id="guruTabPresensi" class="guru-tab-content">
-          <!-- Card Profile Header -->
-          <div class="card glass-card border-0 p-3 mb-3 bg-gradient-indigo text-white" style="background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);">
+          <div class="glass-card mb-3 text-white" style="background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);">
             <div class="d-flex align-items-center justify-content-between">
               <div class="d-flex align-items-center gap-3">
                 <div class="bg-white text-primary rounded-circle d-flex align-items-center justify-content-center fw-bold fs-4" style="width: 48px; height: 48px;">
@@ -575,36 +667,37 @@
                 </div>
                 <div>
                   <h6 class="fw-bold mb-0 text-white" id="guruProfileName">Nama Guru</h6>
-                  <span class="small opacity-75 d-block" id="guruProfileNip">NIP. -</span>
+                  <span class="small opacity-75 d-block" id="guruProfileNip">Username aktif</span>
                 </div>
               </div>
-              <span class="badge bg-white text-primary rounded-pill px-3 py-2 small fw-bold" id="guruProfileRole">GURU</span>
+              <span class="badge bg-white text-primary rounded-pill px-3 py-2 small fw-bold">GURU</span>
             </div>
           </div>
 
-          <!-- Realtime Clock & Status Jarak -->
-          <div class="card glass-card border-0 p-3 mb-3 text-center">
+          <div class="glass-card mb-3 text-center">
             <div class="text-uppercase tracking-wider text-muted small fw-semibold">Waktu Real-Time</div>
             <h2 class="fw-bold my-1 text-primary" id="realtimeClock">00:00:00</h2>
             <div class="small text-muted mb-2" id="realtimeDate">Senin, 1 Januari 2026</div>
-
+            <div id="todayScheduleInfo" class="alert alert-secondary py-1 px-2 small mb-2">Jadwal hari ini: Memuat...</div>
+            <div id="todayAttendanceStatusBox" class="alert alert-light border py-2 px-3 small mb-2 text-start">
+              <div class="d-flex justify-content-between">
+                <span>Absen Masuk: <strong id="statusMasukHariIni">Belum Absen</strong></span>
+                <span>Absen Pulang: <strong id="statusPulangHariIni">Belum Absen</strong></span>
+              </div>
+            </div>
             <hr class="my-2">
-
-            <!-- Distance Indicator -->
             <div class="d-flex align-items-center justify-content-center gap-2 mt-2">
-              <i class="fa-solid fa-location-dot" id="distanceIcon"></i>
+              <i class="bi bi-geo-alt-fill" id="distanceIcon"></i>
               <span class="small fw-semibold" id="distanceText">Menghitung jarak lokasi...</span>
             </div>
           </div>
 
-          <!-- Camera Stream Scan Wajah -->
-          <div class="card glass-card border-0 p-3 mb-3 text-center">
+          <div class="glass-card mb-3 text-center">
             <div class="d-flex justify-content-between align-items-center mb-2">
-              <span class="small fw-bold text-uppercase"><i class="fa-solid fa-camera me-1"></i> Verifikasi Face Scan</span>
+              <span class="small fw-bold text-uppercase"><i class="bi bi-camera-fill me-1"></i> Verifikasi Face Scan</span>
               <span id="faceStatusBadge" class="badge bg-secondary">Kamera Off</span>
             </div>
 
-            <!-- Viewport Kamera -->
             <div class="scanner-container mb-3">
               <video id="webcamVideo" autoplay playsinline muted></video>
               <div class="face-overlay" id="faceOverlay"></div>
@@ -612,93 +705,109 @@
             </div>
 
             <div class="d-flex gap-2">
-              <button class="btn btn-outline-primary btn-sm flex-fill rounded-pill" onclick="startCamera()">
-                <i class="fa-solid fa-video me-1"></i> Buka Kamera
+              <button class="btn btn-outline-primary btn-sm flex-fill rounded-pill" id="btnStartCam" onclick="startCamera()">
+                <i class="bi bi-camera-video me-1"></i> Buka Kamera
               </button>
               <button class="btn btn-primary flex-fill rounded-pill py-2 shadow-sm" id="btnDoAbsen" onclick="processAbsensi()" disabled>
-                <i class="fa-solid fa-fingerprint me-1"></i> SIMPAN PRESENSI
+                <i class="bi bi-fingerprint me-1"></i> ABSEN MASUK
               </button>
             </div>
           </div>
 
-          <!-- Card Quick WA Share (jika sudah absensi) -->
-          <div id="waShareCard" class="card glass-card border-0 p-3 mb-3 d-none">
+          <div id="waShareCard" class="glass-card mb-3 d-none">
             <div class="d-flex align-items-center justify-content-between">
               <div>
                 <h6 class="fw-bold mb-1 text-success"><i class="fa-brands fa-whatsapp me-2 fs-5"></i>Kirim Bukti Presensi</h6>
-                <p class="small text-muted mb-0">Kirim notifikasi otomatis ke WA Anda / Admin</p>
+                <p class="small text-muted mb-0">Kirim notifikasi otomatis ke WhatsApp</p>
               </div>
               <a id="btnWaDirect" href="#" target="_blank" class="btn btn-success rounded-pill btn-sm">
-                <i class="fa-solid fa-paper-plane me-1"></i> Kirim WA
+                <i class="bi bi-send me-1"></i> Kirim WA
               </a>
             </div>
           </div>
         </div>
 
-        <!-- Tab Guru: Riwayat Absensi -->
         <div id="guruTabRiwayat" class="guru-tab-content d-none">
-          <h5 class="fw-bold mb-3"><i class="fa-solid fa-clock-rotate-left me-2 text-primary"></i>Riwayat Absensi Saya</h5>
-          
-          <div id="guruRiwayatList" class="d-flex flex-column gap-2">
-            <!-- Dynamic Cards -->
-          </div>
+          <h5 class="fw-bold mb-3"><i class="bi bi-clock-history me-2 text-primary"></i>Riwayat Absensi Saya</h5>
+          <div id="guruRiwayatList" class="d-flex flex-column gap-2"></div>
         </div>
 
       </div>
     </div>
-
   </div>
 
-  <!-- Mobile Bottom Nav (Khusus Guru View) -->
   <div id="mobileBottomNav" class="mobile-nav d-none">
     <a href="#" class="mobile-nav-item active" onclick="switchGuruTab('presensi', this)">
-      <i class="fa-solid fa-camera-retro"></i>
+      <i class="bi bi-camera-fill"></i>
       <span>Presensi</span>
     </a>
     <a href="#" class="mobile-nav-item" onclick="switchGuruTab('riwayat', this)">
-      <i class="fa-solid fa-list-check"></i>
+      <i class="bi bi-clock-history"></i>
       <span>Riwayat</span>
     </a>
     <a href="#" class="mobile-nav-item" onclick="logout()">
-      <i class="fa-solid fa-right-from-bracket"></i>
+      <i class="bi bi-box-arrow-right"></i>
       <span>Keluar</span>
     </a>
   </div>
 
-  <!-- MODAL: Tambah / Edit Guru -->
+  <!-- MODAL: Tambah / Edit Guru & Jadwal Mengajar -->
   <div class="modal fade" id="modalGuru" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content rounded-4 border-0">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content rounded-4 border-0 p-3">
         <div class="modal-header border-0 pb-0">
-          <h5 class="modal-title fw-bold" id="modalGuruTitle">Tambah Data Guru</h5>
+          <h5 class="modal-title fw-bold" id="modalGuruTitle">Tambah Data Guru & Jadwal</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <form id="formGuru" onsubmit="saveGuru(event)">
           <div class="modal-body">
             <input type="hidden" id="guruEditId">
-            <div class="mb-3">
-              <label class="form-label small fw-semibold">NIP / Nomor Induk</label>
-              <input type="text" id="guruNip" class="form-control" placeholder="1985xxxx..." required>
-            </div>
-            <div class="mb-3">
-              <label class="form-label small fw-semibold">Nama Lengkap & Gelar</label>
-              <input type="text" id="guruNama" class="form-control" placeholder="Drs. Ahmad Supriyadi, M.Pd" required>
-            </div>
-            <div class="mb-3">
-              <label class="form-label small fw-semibold">Jabatan / Mata Pelajaran</label>
-              <input type="text" id="guruJabatan" class="form-control" placeholder="Guru Matematika" required>
-            </div>
-            <div class="mb-3">
-              <label class="form-label small fw-semibold">Alamat Email</label>
-              <input type="email" id="guruEmail" class="form-control" placeholder="guru@sekolah.sch.id" required>
-            </div>
-            <div class="mb-3">
-              <label class="form-label small fw-semibold">No. WhatsApp (Format 62...)</label>
-              <input type="text" id="guruWa" class="form-control" placeholder="6281234567890" required>
-            </div>
-            <div class="mb-3">
-              <label class="form-label small fw-semibold">Password Akun</label>
-              <input type="text" id="guruPassword" class="form-control" value="guru123" required>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Nama Lengkap (Username Login)</label>
+                <input type="text" id="guruNama" class="form-control" placeholder="Contoh: TIO ANGGARA" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Tanggal Lahir (Password Login)</label>
+                <input type="date" id="guruTglLahir" class="form-control" required>
+                <div class="form-text">Otomatis dikonversi ke format <b>DDMMYYYY</b> (cth: 20-12-2004 menjadi <b>20122004</b>).</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Jabatan / Mata Pelajaran</label>
+                <input type="text" id="guruJabatan" class="form-control" placeholder="Guru Matematika" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Alamat Email</label>
+                <input type="email" id="guruEmail" class="form-control" placeholder="guru@sekolah.sch.id" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">No. WhatsApp (62...)</label>
+                <input type="text" id="guruWa" class="form-control" placeholder="6281234567890" required>
+              </div>
+
+              <div class="col-12"><hr class="my-2"></div>
+              
+              <div class="col-12">
+                <label class="form-label fw-bold text-primary">Hari Mengajar (Pilih Hari Masuk)</label>
+                <div class="d-flex flex-wrap gap-3">
+                  <div class="form-check"><input class="form-check-input day-check" type="checkbox" value="Senin" id="daySenin"><label class="form-check-label" for="daySenin">Senin</label></div>
+                  <div class="form-check"><input class="form-check-input day-check" type="checkbox" value="Selasa" id="daySelasa"><label class="form-check-label" for="daySelasa">Selasa</label></div>
+                  <div class="form-check"><input class="form-check-input day-check" type="checkbox" value="Rabu" id="dayRabu"><label class="form-check-label" for="dayRabu">Rabu</label></div>
+                  <div class="form-check"><input class="form-check-input day-check" type="checkbox" value="Kamis" id="dayKamis"><label class="form-check-label" for="dayKamis">Kamis</label></div>
+                  <div class="form-check"><input class="form-check-input day-check" type="checkbox" value="Jumat" id="dayJumat"><label class="form-check-label" for="dayJumat">Jumat</label></div>
+                  <div class="form-check"><input class="form-check-input day-check" type="checkbox" value="Sabtu" id="daySabtu"><label class="form-check-label" for="daySabtu">Sabtu</label></div>
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Jam Masuk Mengajar</label>
+                <input type="time" id="guruJamMasuk" class="form-control" value="07:00" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Jam Pulang Mengajar</label>
+                <input type="time" id="guruJamPulang" class="form-control" value="15:00" required>
+              </div>
+
             </div>
           </div>
           <div class="modal-footer border-0 pt-0">
@@ -710,12 +819,12 @@
     </div>
   </div>
 
-  <!-- MODAL: Google Apps Script API Settings & Backend Instructions -->
+  <!-- MODAL: Google Apps Script API Settings -->
   <div class="modal fade" id="modalGAS" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
-      <div class="modal-content rounded-4 border-0">
+      <div class="modal-content rounded-4 border-0 p-3">
         <div class="modal-header border-0">
-          <h5 class="modal-title fw-bold"><i class="fa-solid fa-database text-primary me-2"></i>Integrasi Google Sheets Backend (GAS)</h5>
+          <h5 class="modal-title fw-bold"><i class="bi bi-database-fill text-primary me-2"></i>Integrasi Google Sheets Backend (GAS)</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
@@ -725,154 +834,36 @@
               <input type="url" id="gasUrlInput" class="form-control" placeholder="https://script.google.com/macros/s/.../exec">
               <button class="btn btn-primary" onclick="saveGASUrl()">Simpan URL</button>
             </div>
-            <div class="form-text">Kosongkan jika ingin tetap menggunakan <b>Mode Simulasi (LocalStorage)</b>.</div>
+            <div class="form-text">Kosongkan jika menggunakan Mode Lokal.</div>
           </div>
-
-          <hr>
-
-          <h6 class="fw-bold mb-2"><i class="fa-solid fa-code me-1 text-indigo"></i> Panduan Panduan Backend Google Sheets (Salin Skrip Ini)</h6>
-          <p class="small text-muted">Buka Google Sheets baru -> Klik menu <b>Ekstensi -> Apps Script</b> -> Hapus kode lama dan tempel kode berikut lalu klik <b>Deploy -> Web App (Anyone)</b>:</p>
-
-          <pre class="bg-dark text-light p-3 rounded-3 fs-7" style="max-height: 250px; overflow-y: auto;">
-// ==================== KODE GOOGLE APPS SCRIPT (GAS) LENGKAP ====================
-function doGet(e) {
-  var action = (e && e.parameter) ? e.parameter.action : '';
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  
-  if (action == 'getData') {
-    var users = getSheetData(ss.getSheetByName('Users'));
-    var attendance = getSheetData(ss.getSheetByName('Attendance'));
-    var settings = getSheetData(ss.getSheetByName('Settings'));
-    return responseJSON({ status: 'success', users: users, attendance: attendance, settings: settings });
-  }
-  return responseJSON({ status: 'active', message: 'API EduAbsen Pro Siap Digunakan' });
-}
-
-function doPost(e) {
-  try {
-    if (!e || !e.postData || !e.postData.contents) {
-      return responseJSON({ status: 'error', message: 'Data kosong' });
-    }
-    var data = JSON.parse(e.postData.contents);
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    
-    if (data.action == 'absen') {
-      var sheet = ss.getSheetByName('Attendance');
-      var rows = sheet.getDataRange().getValues();
-      var updated = false;
-      
-      // Cek jika sudah absen masuk hari ini -> update jamPulang
-      for (var i = 1; i < rows.length; i++) {
-        if (String(rows[i][1]) === String(data.nip) && String(rows[i][3]) === String(data.tanggal)) {
-          sheet.getRange(i + 1, 6).setValue(data.jamPulang || '-');
-          updated = true;
-          break;
-        }
-      }
-      
-      if (!updated) {
-        sheet.appendRow([
-          data.id || ('att-' + new Date().getTime()),
-          data.nip || '-',
-          data.nama || '-',
-          data.tanggal || '-',
-          data.jamMasuk || '-',
-          data.jamPulang || '-',
-          data.jarak !== undefined ? data.jarak : 0,
-          data.status || '-'
-        ]);
-      }
-      return responseJSON({ status: 'success', mode: updated ? 'pulang' : 'masuk' });
-    }
-
-    if (data.action == 'syncUsers') {
-      var uSheet = ss.getSheetByName('Users');
-      uSheet.clearContents();
-      uSheet.appendRow(['id', 'nip', 'nama', 'role', 'jabatan', 'email', 'wa', 'password']);
-      (data.users || []).forEach(function(u) {
-        uSheet.appendRow([u.id, u.nip, u.nama, u.role, u.jabatan, u.email, u.wa, u.password]);
-      });
-      return responseJSON({ status: 'success' });
-    }
-
-    if (data.action == 'syncSettings') {
-      var sSheet = ss.getSheetByName('Settings');
-      sSheet.clearContents();
-      sSheet.appendRow(['jamMasuk', 'jamPulang', 'toleransiMenit', 'latSekolah', 'lngSekolah', 'radiusMeter']);
-      var st = data.settings;
-      sSheet.appendRow([st.jamMasuk, st.jamPulang, st.toleransiMenit, st.latSekolah, st.lngSekolah, st.radiusMeter]);
-      return responseJSON({ status: 'success' });
-    }
-
-    return responseJSON({ status: 'error', message: 'Action tidak dikenali' });
-  } catch (err) {
-    return responseJSON({ status: 'error', message: err.toString() });
-  }
-}
-
-function getSheetData(sheet) {
-  if (!sheet) return [];
-  var rows = sheet.getDataRange().getValues();
-  if (rows.length < 2) return [];
-  var headers = rows[0];
-  var data = [];
-  for (var i = 1; i < rows.length; i++) {
-    var obj = {};
-    for (var j = 0; j < headers.length; j++) {
-      var val = rows[i][j];
-      if (val instanceof Date) {
-        if (headers[j] === 'tanggal') {
-          val = Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-        } else {
-          val = Utilities.formatDate(val, Session.getScriptTimeZone(), 'HH:mm:ss');
-        }
-      }
-      obj[headers[j]] = val;
-    }
-    data.push(obj);
-  }
-  return data;
-}
-
-function responseJSON(data) {
-  return ContentService.createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-          </pre>
         </div>
       </div>
     </div>
   </div>
 
   <!-- Bootstrap JS Bundle -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <!-- SweetAlert2 JS -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
   <!-- APP JAVASCRIPT LOGIC -->
   <script>
-    // ==========================================
-    // 1. INITIAL STATE & MOCK DATABASE
-    // ==========================================
     const DEFAULT_SETTINGS = {
-      jamMasuk: "07:00",
-      jamPulang: "15:00",
       toleransiMenit: 15,
-      latSekolah: -6.175392, // Default Monas/Jakarta coordinate for test
+      latSekolah: -6.175392,
       lngSekolah: 106.827153,
       radiusMeter: 100
     };
 
+    // Data awal sudah disesuaikan dengan format DDMMYYYY (TanggalBulanTahun) dan menyertakan TIO ANGGARA
     const DEFAULT_USERS = [
-      { id: "1", nip: "admin", nama: "Administrator", role: "admin", jabatan: "Operator Sekolah", email: "admin@sekolah.sch.id", wa: "628123456789", password: "admin123" },
-      { id: "2", nip: "19850101201001", nama: "Budi Santoso, S.Pd", role: "guru", jabatan: "Guru Matematika", email: "budi@sekolah.sch.id", wa: "6281299990000", password: "guru123" },
-      { id: "3", nip: "19900304201502", nama: "Siti Rahma, M.Pd", role: "guru", jabatan: "Guru Bahasa Indonesia", email: "siti@sekolah.sch.id", wa: "6281288881111", password: "guru123" }
+      { id: "1", username: "admin", nama: "Administrator", role: "admin", jabatan: "Operator Sekolah", email: "admin@sekolah.sch.id", wa: "628123456789", password: "admin123", hariMengajar: ["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"], jamMasuk: "07:00", jamPulang: "15:00" },
+      { id: "2", username: "TIO ANGGARA", nama: "TIO ANGGARA", role: "guru", jabatan: "Guru Produktif", email: "tio@sekolah.sch.id", wa: "6281234567890", password: "20122004", rawTglLahir: "2004-12-20", hariMengajar: ["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"], jamMasuk: "07:00", jamPulang: "15:00" },
+      { id: "3", username: "Budi Santoso, S.Pd", nama: "Budi Santoso, S.Pd", role: "guru", jabatan: "Guru Matematika", email: "budi@sekolah.sch.id", wa: "6281299990000", password: "01011985", rawTglLahir: "1985-01-01", hariMengajar: ["Senin","Rabu","Jumat"], jamMasuk: "07:00", jamPulang: "14:00" },
+      { id: "4", username: "Siti Rahma, M.Pd", nama: "Siti Rahma, M.Pd", role: "guru", jabatan: "Guru Bahasa Indonesia", email: "siti@sekolah.sch.id", wa: "6281288881111", password: "04031990", rawTglLahir: "1990-03-04", hariMengajar: ["Selasa","Kamis","Sabtu"], jamMasuk: "07:30", jamPulang: "14:30" }
     ];
 
-    const DEFAULT_ATTENDANCE = [
-      { id: "att-1", nip: "19850101201001", nama: "Budi Santoso, S.Pd", tanggal: "2026-11-10", jamMasuk: "06:55:10", jamPulang: "15:05:22", jarak: 25, status: "Hadir Tepat Waktu" },
-      { id: "att-2", nip: "19900304201502", nama: "Siti Rahma, M.Pd", tanggal: "2026-11-10", jamMasuk: "07:20:00", jamPulang: "15:00:00", jarak: 40, status: "Terlambat" }
-    ];
+    const DEFAULT_ATTENDANCE = [];
 
     let currentUser = null;
     let currentLoginRole = 'guru';
@@ -880,28 +871,53 @@ function responseJSON(data) {
     let cameraStream = null;
     let isFaceDetected = false;
 
-    // LocalStorage Keys
-    const STORAGE_USERS = 'eduabsen_users';
+    // Menggunakan versi storage v2 agar data default terbaru (TIO ANGGARA) otomatis dimuat
+    const STORAGE_USERS = 'eduabsen_users_v2';
     const STORAGE_ATTENDANCE = 'eduabsen_attendance';
     const STORAGE_SETTINGS = 'eduabsen_settings';
     const STORAGE_GAS_URL = 'eduabsen_gas_url';
 
-    // Modal Instance
     let bsModalGuru = null;
     let bsModalGAS = null;
 
-    // ==========================================
-    // 2. INITIALIZATION ON LOAD
-    // ==========================================
+    // Helper: Konversi YYYY-MM-DD ke DDMMYYYY (misal 2004-12-20 -> 20122004)
+    function formatToDDMMYYYY(dateStr) {
+      if (!dateStr) return '';
+      const clean = String(dateStr).trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+        const [yyyy, mm, dd] = clean.split('-');
+        return `${dd}${mm}${yyyy}`;
+      }
+      return clean.replace(/[^0-9]/g, '');
+    }
+
+    // Helper: Konversi DDMMYYYY ke YYYY-MM-DD untuk input type="date" saat Edit Guru
+    function formatToYYYYMMDD(ddmmyyyy) {
+      if (!ddmmyyyy) return '';
+      const clean = String(ddmmyyyy).trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
+      if (/^\d{8}$/.test(clean)) {
+        const dd = clean.substring(0, 2);
+        const mm = clean.substring(2, 4);
+        const yyyy = clean.substring(4, 8);
+        return `${yyyy}-${mm}-${dd}`;
+      }
+      return '';
+    }
+
     window.onload = async function() {
       initLocalStorage();
       startRealtimeClock();
       bsModalGuru = new bootstrap.Modal(document.getElementById('modalGuru'));
       bsModalGAS = new bootstrap.Modal(document.getElementById('modalGAS'));
+
+      const currentMonth = new Date().getMonth() + 1;
+      document.getElementById('filterBulan').value = String(currentMonth);
+      document.getElementById('filterTahun').value = new Date().getFullYear();
+
       updateConnectionBadge();
       await syncFromGAS(true);
 
-      // Check Active Session
       const savedUser = sessionStorage.getItem('eduabsen_session');
       if (savedUser) {
         currentUser = JSON.parse(savedUser);
@@ -917,10 +933,10 @@ function responseJSON(data) {
       const badge = document.getElementById('sessionStatusBadge');
       if (!badge) return;
       if (getGASUrl()) {
-        badge.className = 'badge badge-soft-success d-none d-md-inline-block px-3 py-2';
+        badge.className = 'badge bg-success text-white d-none d-md-inline-block px-3 py-2';
         badge.innerHTML = '<i class="fa-solid fa-cloud-check me-1"></i> Terhubung Google Sheets';
       } else {
-        badge.className = 'badge badge-soft-warning d-none d-md-inline-block px-3 py-2';
+        badge.className = 'badge bg-warning text-dark d-none d-md-inline-block px-3 py-2';
         badge.innerHTML = '<i class="fa-solid fa-database me-1"></i> Mode Simulasi LocalStorage';
       }
     }
@@ -940,8 +956,6 @@ function responseJSON(data) {
         if (json.settings && json.settings.length > 0) {
           const s = json.settings[0];
           localStorage.setItem(STORAGE_SETTINGS, JSON.stringify({
-            jamMasuk: String(s.jamMasuk || '07:00').slice(0, 5),
-            jamPulang: String(s.jamPulang || '15:00').slice(0, 5),
             toleransiMenit: Number(s.toleransiMenit ?? 15),
             latSekolah: Number(s.latSekolah ?? -6.175392),
             lngSekolah: Number(s.lngSekolah ?? 106.827153),
@@ -951,9 +965,6 @@ function responseJSON(data) {
         return true;
       } catch (err) {
         console.error('GAS Sync Error:', err);
-        if (!silent) {
-          Swal.fire('Gagal Sinkronisasi', 'Tidak dapat mengambil data dari Google Sheets: ' + err.message, 'error');
-        }
         return false;
       }
     }
@@ -970,70 +981,66 @@ function responseJSON(data) {
     }
 
     function initLocalStorage() {
-      if (!localStorage.getItem(STORAGE_USERS)) {
-        localStorage.setItem(STORAGE_USERS, JSON.stringify(DEFAULT_USERS));
-      }
-      if (!localStorage.getItem(STORAGE_ATTENDANCE)) {
-        localStorage.setItem(STORAGE_ATTENDANCE, JSON.stringify(DEFAULT_ATTENDANCE));
-      }
-      if (!localStorage.getItem(STORAGE_SETTINGS)) {
-        localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
-      }
+      if (!localStorage.getItem(STORAGE_USERS)) localStorage.setItem(STORAGE_USERS, JSON.stringify(DEFAULT_USERS));
+      if (!localStorage.getItem(STORAGE_ATTENDANCE)) localStorage.setItem(STORAGE_ATTENDANCE, JSON.stringify(DEFAULT_ATTENDANCE));
+      if (!localStorage.getItem(STORAGE_SETTINGS)) localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
     }
 
-    function getSettings() {
-      return JSON.parse(localStorage.getItem(STORAGE_SETTINGS)) || DEFAULT_SETTINGS;
-    }
+    function getSettings() { return JSON.parse(localStorage.getItem(STORAGE_SETTINGS)) || DEFAULT_SETTINGS; }
+    function getUsers() { return JSON.parse(localStorage.getItem(STORAGE_USERS)) || DEFAULT_USERS; }
+    function getAttendance() { return JSON.parse(localStorage.getItem(STORAGE_ATTENDANCE)) || DEFAULT_ATTENDANCE; }
 
-    function getUsers() {
-      return JSON.parse(localStorage.getItem(STORAGE_USERS)) || DEFAULT_USERS;
-    }
-
-    function getAttendance() {
-      return JSON.parse(localStorage.getItem(STORAGE_ATTENDANCE)) || DEFAULT_ATTENDANCE;
-    }
-
-    // ==========================================
-    // 3. AUTHENTICATION LOGIC
-    // ==========================================
     function switchLoginRole(role) {
       currentLoginRole = role;
       const btnGuru = document.getElementById('roleBtnGuru');
       const btnAdmin = document.getElementById('roleBtnAdmin');
-      const labelNip = document.getElementById('loginLabelNip');
+      const labelId = document.getElementById('loginLabelId');
+      const labelPw = document.getElementById('loginLabelPassword');
+      const inputId = document.getElementById('loginIdInput');
+      const inputPw = document.getElementById('loginPasswordInput');
 
       if (role === 'guru') {
-        btnGuru.className = 'btn btn-primary rounded-pill flex-fill fw-semibold btn-sm py-2';
+        btnGuru.className = 'btn btn-primary rounded-pill flex-fill fw-semibold btn-sm py-2 shadow-sm';
         btnAdmin.className = 'btn btn-light rounded-pill flex-fill fw-semibold btn-sm py-2 text-muted';
-        labelNip.innerText = 'NIP / Identifier Guru';
+        labelId.innerText = 'Username Guru (Nama Lengkap)';
+        labelPw.innerText = 'Kata Sandi (Tanggal Lahir: DDMMYYYY)';
+        inputId.placeholder = 'Contoh: TIO ANGGARA';
+        inputPw.placeholder = 'Contoh: 20122004';
       } else {
-        btnAdmin.className = 'btn btn-primary rounded-pill flex-fill fw-semibold btn-sm py-2';
+        btnAdmin.className = 'btn btn-primary rounded-pill flex-fill fw-semibold btn-sm py-2 shadow-sm';
         btnGuru.className = 'btn btn-light rounded-pill flex-fill fw-semibold btn-sm py-2 text-muted';
-        labelNip.innerText = 'Username / Identifier Admin';
+        labelId.innerText = 'Username Administrator';
+        labelPw.innerText = 'Kata Sandi Admin';
+        inputId.placeholder = 'Masukkan username admin...';
+        inputPw.placeholder = 'Masukkan kata sandi admin...';
       }
     }
 
-    function quickFill(id, pw, role) {
-      switchLoginRole(role);
-      document.getElementById('loginIdInput').value = id;
-      document.getElementById('loginPasswordInput').value = pw;
-    }
-
-    function handleLogin(e) {
+    async function handleLogin(e) {
       e.preventDefault();
-      const inputId = document.getElementById('loginIdInput').value.trim();
+      // Hapus spasi ganda/berlebih dan samakan huruf kecil agar fleksibel
+      const inputId = document.getElementById('loginIdInput').value.replace(/\s+/g, ' ').trim().toLowerCase();
       const inputPw = document.getElementById('loginPasswordInput').value.trim();
 
+      if (getGASUrl()) { await syncFromGAS(true); }
+
       const users = getUsers();
-      const found = users.find(u => (u.nip === inputId || u.email === inputId) && u.password === inputPw);
+      const found = users.find(u => {
+        const uname = (u.username || u.nip || u.nama || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        const unama = (u.nama || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        const matchUser = (uname === inputId || unama === inputId);
+
+        // Cocokkan password langsung atau hasil konversi DDMMYYYY
+        const storedPw = String(u.password || '').trim();
+        const formattedStoredPw = u.role === 'guru' ? formatToDDMMYYYY(storedPw) : storedPw;
+        const cleanInputPw = u.role === 'guru' ? inputPw.replace(/[^0-9]/g, '') : inputPw;
+
+        const matchPass = (storedPw === inputPw) || (u.role === 'guru' && formattedStoredPw === cleanInputPw && cleanInputPw !== '');
+        return matchUser && matchPass;
+      });
 
       if (!found) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Gagal Masuk',
-          text: 'NIP / Password yang Anda masukkan tidak cocok!',
-          confirmColor: '#4f46e5'
-        });
+        Swal.fire({ icon: 'error', title: 'Gagal Masuk', text: 'Nama (Username) atau Tanggal Lahir (Password) tidak cocok!' });
         return;
       }
 
@@ -1044,16 +1051,7 @@ function responseJSON(data) {
 
       currentUser = found;
       sessionStorage.setItem('eduabsen_session', JSON.stringify(currentUser));
-      
-      Swal.fire({
-        icon: 'success',
-        title: 'Selamat Datang',
-        text: `Halo ${currentUser.nama}, Anda berhasil masuk.`,
-        timer: 1500,
-        showConfirmButton: false
-      }).then(() => {
-        renderViewForUser();
-      });
+      renderViewForUser();
     }
 
     function logout() {
@@ -1063,13 +1061,11 @@ function responseJSON(data) {
       document.getElementById('adminSection').classList.add('d-none');
       document.getElementById('guruSection').classList.add('d-none');
       document.getElementById('mobileBottomNav').classList.add('d-none');
-      document.getElementById('userMenuDropdown').classList.add('d-none');
       document.getElementById('loginSection').classList.remove('d-none');
     }
 
     function renderViewForUser() {
       document.getElementById('loginSection').classList.add('d-none');
-      document.getElementById('userMenuDropdown').classList.remove('d-none');
       document.getElementById('navUserName').innerText = currentUser.nama;
 
       if (currentUser.role === 'admin') {
@@ -1085,22 +1081,116 @@ function responseJSON(data) {
         document.getElementById('adminSection').classList.add('d-none');
         document.getElementById('guruSection').classList.remove('d-none');
         document.getElementById('mobileBottomNav').classList.remove('d-none');
-        
-        // Setup Profile Guru View
         document.getElementById('guruProfileName').innerText = currentUser.nama;
-        document.getElementById('guruProfileNip').innerText = "NIP. " + currentUser.nip;
-        document.getElementById('guruAvatarInit').innerText = currentUser.nama.charAt(0);
+        document.getElementById('guruProfileNip').innerText = "Username: " + currentUser.nama;
+        document.getElementById('guruAvatarInit').innerText = currentUser.nama.charAt(0).toUpperCase();
         
+        checkTodayTeacherSchedule();
+        updateGuruAttendanceUIState();
         initGuruLocationTracking();
         loadGuruRiwayat();
       }
     }
 
-    // ==========================================
-    // 4. ADMIN FEATURES & LOGIC
-    // ==========================================
+    function getTodayGuruRecord() {
+      const todayStr = getTodayDateString();
+      const attendance = getAttendance();
+      return attendance.find(a => (a.nip === currentUser.nip || a.nama === currentUser.nama) && a.tanggal === todayStr) || null;
+    }
+
+    function updateGuruAttendanceUIState() {
+      const record = getTodayGuruRecord();
+      const masukEl = document.getElementById('statusMasukHariIni');
+      const pulangEl = document.getElementById('statusPulangHariIni');
+      const btnAbsen = document.getElementById('btnDoAbsen');
+      const btnCam = document.getElementById('btnStartCam');
+      const st = getSettings();
+
+      if (!record) {
+        masukEl.innerText = "Belum Absen";
+        masukEl.className = "text-danger";
+        pulangEl.innerText = "Belum Absen";
+        pulangEl.className = "text-muted";
+
+        btnAbsen.innerHTML = `<i class="bi bi-box-arrow-in-right me-1"></i> ABSEN MASUK`;
+        btnAbsen.className = "btn btn-primary flex-fill rounded-pill py-2 shadow-sm";
+        btnCam.removeAttribute('disabled');
+
+        if (isFaceDetected && userLocation.distance <= st.radiusMeter) {
+          btnAbsen.removeAttribute('disabled');
+        } else {
+          btnAbsen.setAttribute('disabled', 'true');
+        }
+      } else if (record.jamMasuk && (!record.jamPulang || record.jamPulang === '-')) {
+        masukEl.innerText = record.jamMasuk + ` (${record.status})`;
+        masukEl.className = record.status.includes('Terlambat') ? "text-warning" : "text-success";
+        pulangEl.innerText = "Belum Absen";
+        pulangEl.className = "text-danger";
+
+        btnAbsen.innerHTML = `<i class="bi bi-box-arrow-right me-1"></i> ABSEN PULANG`;
+        btnAbsen.className = "btn btn-warning text-dark fw-bold flex-fill rounded-pill py-2 shadow-sm";
+        btnCam.removeAttribute('disabled');
+
+        if (isFaceDetected && userLocation.distance <= st.radiusMeter) {
+          btnAbsen.removeAttribute('disabled');
+        } else {
+          btnAbsen.setAttribute('disabled', 'true');
+        }
+      } else {
+        masukEl.innerText = record.jamMasuk;
+        masukEl.className = "text-success";
+        pulangEl.innerText = record.jamPulang;
+        pulangEl.className = "text-success";
+
+        btnAbsen.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i> PRESENSI HARI INI SELESAI`;
+        btnAbsen.className = "btn btn-secondary flex-fill rounded-pill py-2";
+        btnAbsen.setAttribute('disabled', 'true');
+        btnCam.setAttribute('disabled', 'true');
+        stopCamera();
+      }
+    }
+
+    function checkTodayTeacherSchedule() {
+      const daysMap = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+      const todayName = daysMap[new Date().getDay()];
+      const hariMengajar = currentUser.hariMengajar || [];
+      const infoEl = document.getElementById('todayScheduleInfo');
+
+      if (hariMengajar.includes(todayName)) {
+        infoEl.className = "alert alert-success py-1 px-2 small mb-2";
+        infoEl.innerHTML = `<i class="bi bi-calendar-check me-1"></i> Jadwal Hari Ini (${todayName}): Masuk <b>${currentUser.jamMasuk}</b> - Pulang <b>${currentUser.jamPulang}</b>`;
+      } else {
+        infoEl.className = "alert alert-warning py-1 px-2 small mb-2";
+        infoEl.innerHTML = `<i class="bi bi-calendar-x me-1"></i> Hari ini (${todayName}), Anda tidak ada jadwal mengajar.`;
+      }
+    }
+
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const mainWrapper = document.getElementById('mainWrapper');
+      const overlay = document.getElementById('sidebarOverlay');
+      if (window.innerWidth < 992) {
+        const isOpen = sidebar.classList.toggle('mobile-open');
+        if (isOpen) {
+          overlay.classList.add('show');
+        } else {
+          overlay.classList.remove('show');
+        }
+      } else {
+        sidebar.classList.toggle('collapsed');
+        mainWrapper.classList.toggle('full');
+      }
+    }
+
+    function closeMobileSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      sidebar.classList.remove('mobile-open');
+      overlay.classList.remove('show');
+    }
+
     function switchAdminTab(tabName, element) {
-      document.querySelectorAll('.nav-link-custom').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-link-item').forEach(el => el.classList.remove('active'));
       if(element) element.classList.add('active');
 
       document.querySelectorAll('.admin-tab-content').forEach(el => el.classList.add('d-none'));
@@ -1109,44 +1199,41 @@ function responseJSON(data) {
       if(tabName === 'jadwal') document.getElementById('adminTabJadwal').classList.remove('d-none');
       if(tabName === 'lokasi') document.getElementById('adminTabLokasi').classList.remove('d-none');
       if(tabName === 'rekap') document.getElementById('adminTabRekap').classList.remove('d-none');
+
+      if(window.innerWidth < 992) {
+        closeMobileSidebar();
+      }
     }
 
     function loadAdminDashboardData() {
       const users = getUsers().filter(u => u.role === 'guru');
       const attendance = getAttendance();
       const todayStr = getTodayDateString();
-
       const todayRecords = attendance.filter(a => a.tanggal === todayStr);
-      const tepatWaktuCount = todayRecords.filter(a => a.status.includes('Hadir Tepat Waktu')).length;
       const terlambatCount = todayRecords.filter(a => a.status.includes('Terlambat')).length;
 
       document.getElementById('statTotalGuru').innerText = users.length;
       document.getElementById('statHadirHariIni').innerText = todayRecords.length;
       document.getElementById('statTerlambatHariIni').innerText = terlambatCount;
 
-      // Render Dynamic Today Table
       const tbody = document.getElementById('tableTodayAttendance');
       tbody.innerHTML = '';
-      
       if (todayRecords.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-3">Belum ada presensi guru hari ini.</td></tr>`;
         return;
       }
-
       todayRecords.forEach(rec => {
+        const daysMap = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+        const todayName = daysMap[new Date(rec.tanggal).getDay()];
         let statusBadge = rec.status.includes('Terlambat') 
-          ? `<span class="badge badge-soft-warning"><i class="fa-solid fa-clock me-1"></i>${rec.status}</span>`
-          : `<span class="badge badge-soft-success"><i class="fa-solid fa-check me-1"></i>${rec.status}</span>`;
-
+          ? `<span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i>${rec.status}</span>`
+          : `<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>${rec.status}</span>`;
         tbody.innerHTML += `
           <tr>
-            <td>
-              <div class="fw-bold">${rec.nama}</div>
-              <div class="small text-muted">${rec.nip}</div>
-            </td>
+            <td><div class="fw-bold">${rec.nama}</div></td>
+            <td><span class="badge bg-light text-dark border">${todayName}</span></td>
             <td>${rec.jamMasuk || '-'}</td>
             <td>${rec.jamPulang || '-'}</td>
-            <td>${rec.jarak} m</td>
             <td>${statusBadge}</td>
           </tr>
         `;
@@ -1161,23 +1248,23 @@ function responseJSON(data) {
       Swal.fire({ icon: 'success', title: 'Data Diperbarui', timer: 1000, showConfirmButton: false });
     }
 
-    // CRUD GURU
     function loadGuruTable() {
       const users = getUsers().filter(u => u.role === 'guru');
       const tbody = document.getElementById('tableGuruBody');
       tbody.innerHTML = '';
-
       users.forEach(u => {
+        const hariStr = (u.hariMengajar || []).join(', ') || 'Tidak ada jadwal';
+        const displayPw = formatToDDMMYYYY(u.password) || u.password || '-';
         tbody.innerHTML += `
           <tr>
-            <td class="fw-semibold">${u.nip}</td>
-            <td>${u.nama}</td>
-            <td><span class="badge badge-soft-primary">${u.jabatan}</span></td>
-            <td>${u.email}</td>
-            <td>${u.wa}</td>
+            <td><div class="fw-bold">${u.nama}</div><div class="small text-muted">Username: ${u.nama}</div></td>
+            <td><span class="badge bg-primary bg-opacity-10 text-primary">${u.jabatan}</span></td>
+            <td><code>${displayPw}</code></td>
+            <td><span class="small text-dark fw-semibold">${hariStr}</span></td>
+            <td><code>${u.jamMasuk || '07:00'} - ${u.jamPulang || '15:00'}</code></td>
             <td class="text-center">
-              <button class="btn btn-sm btn-outline-warning rounded-circle me-1" onclick="editGuru('${u.id}')"><i class="fa-solid fa-pen"></i></button>
-              <button class="btn btn-sm btn-outline-danger rounded-circle" onclick="deleteGuru('${u.id}')"><i class="fa-solid fa-trash"></i></button>
+              <button class="btn btn-sm btn-outline-warning rounded-circle me-1" onclick="editGuru('${u.id}')"><i class="bi bi-pencil-fill"></i></button>
+              <button class="btn btn-sm btn-outline-danger rounded-circle" onclick="deleteGuru('${u.id}')"><i class="bi bi-trash-fill"></i></button>
             </td>
           </tr>
         `;
@@ -1187,7 +1274,8 @@ function responseJSON(data) {
     function openModalGuru() {
       document.getElementById('formGuru').reset();
       document.getElementById('guruEditId').value = '';
-      document.getElementById('modalGuruTitle').innerText = 'Tambah Data Guru';
+      document.querySelectorAll('.day-check').forEach(cb => cb.checked = true);
+      document.getElementById('modalGuruTitle').innerText = 'Tambah Data Guru & Jadwal';
       bsModalGuru.show();
     }
 
@@ -1196,14 +1284,25 @@ function responseJSON(data) {
       const id = document.getElementById('guruEditId').value;
       let users = getUsers();
 
+      const selectedDays = [];
+      document.querySelectorAll('.day-check:checked').forEach(cb => selectedDays.push(cb.value));
+      const namaGuru = document.getElementById('guruNama').value.replace(/\s+/g, ' ').trim();
+      const rawTglLahir = document.getElementById('guruTglLahir').value.trim();
+      const passwordDDMMYYYY = formatToDDMMYYYY(rawTglLahir);
+
       const newGuru = {
         id: id ? id : Date.now().toString(),
-        nip: document.getElementById('guruNip').value.trim(),
-        nama: document.getElementById('guruNama').value.trim(),
+        username: namaGuru,
+        nip: namaGuru,
+        nama: namaGuru,
         jabatan: document.getElementById('guruJabatan').value.trim(),
         email: document.getElementById('guruEmail').value.trim(),
         wa: document.getElementById('guruWa').value.trim(),
-        password: document.getElementById('guruPassword').value.trim(),
+        password: passwordDDMMYYYY, // Tersimpan dalam format DDMMYYYY (misal 20122004)
+        rawTglLahir: rawTglLahir,
+        hariMengajar: selectedDays,
+        jamMasuk: document.getElementById('guruJamMasuk').value,
+        jamPulang: document.getElementById('guruJamPulang').value,
         role: 'guru'
       };
 
@@ -1212,13 +1311,12 @@ function responseJSON(data) {
       } else {
         users.push(newGuru);
       }
-
       localStorage.setItem(STORAGE_USERS, JSON.stringify(users));
       postToGAS({ action: 'syncUsers', users: users }).catch(console.error);
       bsModalGuru.hide();
       loadGuruTable();
       loadAdminDashboardData();
-      Swal.fire('Berhasil', 'Data guru berhasil disimpan!', 'success');
+      Swal.fire('Berhasil', `Data guru disimpan! Password login: ${passwordDDMMYYYY}`, 'success');
     }
 
     function editGuru(id) {
@@ -1227,14 +1325,20 @@ function responseJSON(data) {
       if (!u) return;
 
       document.getElementById('guruEditId').value = u.id;
-      document.getElementById('guruNip').value = u.nip;
       document.getElementById('guruNama').value = u.nama;
+      document.getElementById('guruTglLahir').value = u.rawTglLahir || formatToYYYYMMDD(u.password) || '';
       document.getElementById('guruJabatan').value = u.jabatan;
       document.getElementById('guruEmail').value = u.email;
       document.getElementById('guruWa').value = u.wa;
-      document.getElementById('guruPassword').value = u.password;
+      document.getElementById('guruJamMasuk').value = u.jamMasuk || '07:00';
+      document.getElementById('guruJamPulang').value = u.jamPulang || '15:00';
 
-      document.getElementById('modalGuruTitle').innerText = 'Edit Data Guru';
+      const hari = u.hariMengajar || [];
+      document.querySelectorAll('.day-check').forEach(cb => {
+        cb.checked = hari.includes(cb.value);
+      });
+
+      document.getElementById('modalGuruTitle').innerText = 'Edit Data Guru & Jadwal';
       bsModalGuru.show();
     }
 
@@ -1258,24 +1362,17 @@ function responseJSON(data) {
       });
     }
 
-    // JADWAL & LOKASI
     function loadJadwalForm() {
       const st = getSettings();
-      document.getElementById('setJamMasuk').value = st.jamMasuk;
-      document.getElementById('setJamPulang').value = st.jamPulang;
       document.getElementById('setToleransi').value = st.toleransiMenit;
     }
 
     function saveJadwal(e) {
       e.preventDefault();
       const st = getSettings();
-      st.jamMasuk = document.getElementById('setJamMasuk').value;
-      st.jamPulang = document.getElementById('setJamPulang').value;
       st.toleransiMenit = parseInt(document.getElementById('setToleransi').value) || 0;
-
       localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(st));
-      postToGAS({ action: 'syncSettings', settings: st }).catch(console.error);
-      Swal.fire('Berhasil', 'Pengaturan jam kerja tersimpan.', 'success');
+      Swal.fire('Berhasil', 'Toleransi keterlambatan tersimpan.', 'success');
     }
 
     function loadLokasiForm() {
@@ -1291,84 +1388,116 @@ function responseJSON(data) {
       st.latSekolah = parseFloat(document.getElementById('setLat').value);
       st.lngSekolah = parseFloat(document.getElementById('setLng').value);
       st.radiusMeter = parseInt(document.getElementById('setRadius').value);
-
       localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(st));
-      postToGAS({ action: 'syncSettings', settings: st }).catch(console.error);
       Swal.fire('Berhasil', 'Koordinat lokasi sekolah tersimpan.', 'success');
     }
 
     function getCurrentAdminLocation() {
-      if (!navigator.geolocation) {
-        Swal.fire('Error', 'Browser tidak mendukung Geolocation', 'error');
-        return;
-      }
+      if (!navigator.geolocation) { Swal.fire('Error', 'Geolocation tidak didukung', 'error'); return; }
       navigator.geolocation.getCurrentPosition(
         pos => {
           document.getElementById('setLat').value = pos.coords.latitude.toFixed(6);
           document.getElementById('setLng').value = pos.coords.longitude.toFixed(6);
           Swal.fire('Lokasi Ditemukan', `Lat: ${pos.coords.latitude}, Lng: ${pos.coords.longitude}`, 'info');
         },
-        err => Swal.fire('Gagal Lokasi', err.message, 'error'),
+        err => Swal.fire('Gagal', err.message, 'error'),
         { enableHighAccuracy: true }
       );
     }
 
-    function filterRekapData() {
+    function getFilteredRekapRecords() {
       const month = parseInt(document.getElementById('filterBulan').value);
       const year = parseInt(document.getElementById('filterTahun').value);
       const attendance = getAttendance();
+      return attendance.filter(a => {
+        const d = new Date(a.tanggal);
+        const matchYear = isNaN(year) ? true : d.getFullYear() === year;
+        const matchMonth = month === 0 ? true : (d.getMonth() + 1) === month;
+        return matchYear && matchMonth;
+      });
+    }
+
+    function filterRekapData() {
+      const filtered = getFilteredRekapRecords();
       const tbody = document.getElementById('rekapTableBody');
       tbody.innerHTML = '';
-
-      const filtered = attendance.filter(a => {
-        const d = new Date(a.tanggal);
-        return (d.getMonth() + 1) === month && d.getFullYear() === year;
-      });
-
       if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-3">Tidak ada data rekap untuk periode ini.</td></tr>`;
         return;
       }
-
-      filtered.forEach(rec => {
+      filtered.forEach((rec, idx) => {
+        let badgeColor = rec.status.includes('Terlambat') ? 'bg-warning text-dark' : 'bg-success';
         tbody.innerHTML += `
           <tr>
+            <td>${idx + 1}</td>
             <td>${rec.tanggal}</td>
-            <td>${rec.nip}</td>
             <td>${rec.nama}</td>
             <td>${rec.jamMasuk || '-'}</td>
             <td>${rec.jamPulang || '-'}</td>
             <td>${rec.jarak} m</td>
-            <td><span class="badge bg-secondary">${rec.status}</span></td>
+            <td><span class="badge ${badgeColor}">${rec.status}</span></td>
           </tr>
         `;
       });
     }
 
-    function exportExcelCSV() {
-      const attendance = getAttendance();
-      let csvContent = "data:text/csv;charset=utf-8,ID,NIP,Nama,Tanggal,JamMasuk,JamPulang,Jarak,Status\n";
-      
-      attendance.forEach(r => {
-        csvContent += `${r.id},${r.nip},"${r.nama}",${r.tanggal},${r.jamMasuk},${r.jamPulang},${r.jarak},"${r.status}"\n`;
+    function exportExcelXLSX() {
+      const filtered = getFilteredRekapRecords();
+      if (filtered.length === 0) {
+        Swal.fire('Data Kosong', 'Tidak ada data absensi pada periode yang dipilih untuk diunduh.', 'info');
+        return;
+      }
+
+      const monthSelect = document.getElementById('filterBulan');
+      const monthLabel = monthSelect.options[monthSelect.selectedIndex].text;
+      const yearVal = document.getElementById('filterTahun').value;
+
+      const aoaData = [
+        ["LAPORAN REKAPITULASI PRESENSI GURU - EDUABSEN PRO"],
+        [`Periode: ${monthLabel} ${yearVal} | Dicetak pada: ${new Date().toLocaleDateString('id-ID')}`],
+        [],
+        ["No", "Tanggal", "Nama Guru", "Jam Masuk", "Jam Pulang", "Jarak (Meter)", "Status Kehadiran"]
+      ];
+
+      filtered.forEach((r, index) => {
+        aoaData.push([
+          index + 1,
+          String(r.tanggal || '-'),
+          String(r.nama || '-'),
+          String(r.jamMasuk || '-'),
+          String(r.jamPulang || '-'),
+          Number(r.jarak || 0),
+          String(r.status || '-')
+        ]);
       });
 
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `Rekap_Absensi_Guru_${getTodayDateString()}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(aoaData);
+
+      ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } }
+      ];
+
+      ws['!cols'] = [
+        { wch: 6 },
+        { wch: 15 },
+        { wch: 30 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 16 },
+        { wch: 24 }
+      ];
+
+      ws['!autofilter'] = { ref: `A4:G${4 + filtered.length}` };
+
+      XLSX.utils.book_append_sheet(wb, ws, "Rekap Absensi");
+      XLSX.writeFile(wb, `Rekap_Absensi_Guru_${monthLabel}_${yearVal}.xlsx`);
     }
 
-    // ==========================================
-    // 5. GURU MOBILE FEATURES & GEOLOCATION
-    // ==========================================
     function switchGuruTab(tabName, element) {
       document.querySelectorAll('.mobile-nav-item').forEach(el => el.classList.remove('active'));
       if (element) element.classList.add('active');
-
       document.querySelectorAll('.guru-tab-content').forEach(el => el.classList.add('d-none'));
       if (tabName === 'presensi') document.getElementById('guruTabPresensi').classList.remove('d-none');
       if (tabName === 'riwayat') {
@@ -1377,22 +1506,15 @@ function responseJSON(data) {
       }
     }
 
-    // Realtime Geolocation & Haversine Distance Formula
     function initGuruLocationTracking() {
-      if (!navigator.geolocation) {
-        document.getElementById('distanceText').innerText = "Browser tidak mendukung GPS!";
-        return;
-      }
-
+      if (!navigator.geolocation) return;
       navigator.geolocation.watchPosition(
         pos => {
           userLocation.lat = pos.coords.latitude;
           userLocation.lng = pos.coords.longitude;
           calculateDistance();
         },
-        err => {
-          document.getElementById('distanceText').innerText = "Gagal mengambil GPS: " + err.message;
-        },
+        err => { document.getElementById('distanceText').innerText = "Gagal mengambil GPS"; },
         { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
       );
     }
@@ -1400,8 +1522,7 @@ function responseJSON(data) {
     function calculateDistance() {
       const st = getSettings();
       if (!userLocation.lat || !userLocation.lng) return;
-
-      const R = 6371000; // Earth radius in meters
+      const R = 6371000;
       const dLat = toRad(st.latSekolah - userLocation.lat);
       const dLng = toRad(st.lngSekolah - userLocation.lng);
       const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -1409,55 +1530,49 @@ function responseJSON(data) {
                 Math.sin(dLng/2) * Math.sin(dLng/2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
       const distance = Math.round(R * c);
-
       userLocation.distance = distance;
 
       const distIcon = document.getElementById('distanceIcon');
       const distText = document.getElementById('distanceText');
-      const btnDoAbsen = document.getElementById('btnDoAbsen');
 
       if (distance <= st.radiusMeter) {
-        distIcon.className = "fa-solid fa-circle-check text-success";
-        distText.innerHTML = `<span class="text-success">Jarak: <b>${distance}m</b> dari sekolah (Dalam Radius ${st.radiusMeter}m)</span>`;
-        if (isFaceDetected) btnDoAbsen.removeAttribute('disabled');
+        distIcon.className = "bi bi-geo-alt-fill text-success";
+        distText.innerHTML = `<span class="text-success">Jarak: <b>${distance}m</b> (Dalam Radius ${st.radiusMeter}m)</span>`;
       } else {
-        distIcon.className = "fa-solid fa-circle-xmark text-danger";
+        distIcon.className = "bi bi-geo-alt-fill text-danger";
         distText.innerHTML = `<span class="text-danger">Jarak: <b>${distance}m</b> (Di Luar Radius Maks. ${st.radiusMeter}m)</span>`;
-        btnDoAbsen.setAttribute('disabled', 'true');
       }
+      updateGuruAttendanceUIState();
     }
 
-    function toRad(Value) {
-      return Value * Math.PI / 180;
-    }
+    function toRad(Value) { return Value * Math.PI / 180; }
 
-    // WebRTC Camera Simulation & Detection
     async function startCamera() {
+      const existingRecord = getTodayGuruRecord();
+      if (existingRecord && existingRecord.jamMasuk && existingRecord.jamPulang && existingRecord.jamPulang !== '-') {
+        Swal.fire('Presensi Selesai', 'Anda sudah menyelesaikan absen masuk dan pulang hari ini.', 'info');
+        return;
+      }
+
       try {
         const video = document.getElementById('webcamVideo');
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
         video.srcObject = stream;
         cameraStream = stream;
 
-        document.getElementById('faceStatusBadge').className = 'badge bg-warning';
+        document.getElementById('faceStatusBadge').className = 'badge bg-warning text-dark';
         document.getElementById('faceStatusBadge').innerText = 'Mendeteksi Wajah...';
         document.getElementById('scanLine').style.display = 'block';
 
-        // Simulate Face Detection after 2 seconds scan
         setTimeout(() => {
           isFaceDetected = true;
           document.getElementById('faceOverlay').classList.add('detected');
           document.getElementById('faceStatusBadge').className = 'badge bg-success';
           document.getElementById('faceStatusBadge').innerText = 'Wajah Terverifikasi';
-          
-          const st = getSettings();
-          if (userLocation.distance <= st.radiusMeter) {
-            document.getElementById('btnDoAbsen').removeAttribute('disabled');
-          }
+          updateGuruAttendanceUIState();
         }, 2000);
-
       } catch (err) {
-        Swal.fire('Kamera Error', 'Tidak dapat mengakses kamera: ' + err.message, 'error');
+        Swal.fire('Kamera Error', err.message, 'error');
       }
     }
 
@@ -1466,9 +1581,18 @@ function responseJSON(data) {
         cameraStream.getTracks().forEach(track => track.stop());
         cameraStream = null;
       }
+      isFaceDetected = false;
+      const overlay = document.getElementById('faceOverlay');
+      const scanLine = document.getElementById('scanLine');
+      const badge = document.getElementById('faceStatusBadge');
+      if (overlay) overlay.classList.remove('detected');
+      if (scanLine) scanLine.style.display = 'none';
+      if (badge) {
+        badge.className = 'badge bg-secondary';
+        badge.innerText = 'Kamera Off';
+      }
     }
 
-    // Process Absensi Action
     function processAbsensi() {
       const st = getSettings();
       if (userLocation.distance > st.radiusMeter) {
@@ -1476,28 +1600,43 @@ function responseJSON(data) {
         return;
       }
 
-      const now = new Date();
-      const timeStr = now.toTimeString().split(' ')[0]; // HH:MM:SS
-      const todayStr = getTodayDateString();
+      const daysMap = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+      const todayName = daysMap[new Date().getDay()];
+      const hariMengajar = currentUser.hariMengajar || [];
 
-      let attendance = getAttendance();
-      let record = attendance.find(a => a.nip === currentUser.nip && a.tanggal === todayStr);
-
-      let statusMsg = "Hadir Tepat Waktu";
-      // Calculate delay
-      const [hMasuk, mMasuk] = st.jamMasuk.split(':').map(Number);
-      const limitMinutes = (hMasuk * 60) + mMasuk + st.toleransiMenit;
-      const currentMinutes = (now.getHours() * 60) + now.getMinutes();
-
-      if (currentMinutes > limitMinutes) {
-        statusMsg = "Terlambat";
+      if (hariMengajar.length > 0 && !hariMengajar.includes(todayName)) {
+        Swal.fire('Tidak Ada Jadwal', `Hari ini (${todayName}) Anda tidak terdaftar memiliki jadwal mengajar.`, 'warning');
+        return;
       }
 
+      const now = new Date();
+      const timeStr = now.toTimeString().split(' ')[0];
+      const todayStr = getTodayDateString();
+      let attendance = getAttendance();
+      let record = attendance.find(a => (a.nip === currentUser.nip || a.nama === currentUser.nama) && a.tanggal === todayStr);
+
+      if (record && record.jamMasuk && record.jamPulang && record.jamPulang !== '-') {
+        Swal.fire('Sudah Presensi', 'Anda sudah melakukan presensi masuk dan pulang hari ini. Tidak dapat mengulangi presensi.', 'warning');
+        updateGuruAttendanceUIState();
+        return;
+      }
+
+      let tipeAbsen = "";
+
       if (!record) {
-        // Presensi Masuk
+        const guruJamMasuk = currentUser.jamMasuk || "07:00";
+        const [hMasuk, mMasuk] = guruJamMasuk.split(':').map(Number);
+        const limitMinutes = (hMasuk * 60) + mMasuk + st.toleransiMenit;
+        const currentMinutes = (now.getHours() * 60) + now.getMinutes();
+
+        let statusMsg = "Hadir Tepat Waktu";
+        if (currentMinutes > limitMinutes) {
+          statusMsg = "Terlambat";
+        }
+
         record = {
           id: 'att-' + Date.now(),
-          nip: currentUser.nip,
+          nip: currentUser.nama,
           nama: currentUser.nama,
           tanggal: todayStr,
           jamMasuk: timeStr,
@@ -1506,80 +1645,57 @@ function responseJSON(data) {
           status: statusMsg
         };
         attendance.push(record);
+        tipeAbsen = "Masuk";
       } else {
-        // Presensi Pulang
         record.jamPulang = timeStr;
+        tipeAbsen = "Pulang";
       }
 
       localStorage.setItem(STORAGE_ATTENDANCE, JSON.stringify(attendance));
 
+      stopCamera();
+      updateGuruAttendanceUIState();
+
       const gasUrl = getGASUrl();
       if (gasUrl) {
-        Swal.fire({
-          title: 'Menyimpan ke Google Drive...',
-          allowOutsideClick: false,
-          didOpen: () => Swal.showLoading()
-        });
         postToGAS({
           action: 'absen',
-          id: record.id,
-          nip: record.nip,
-          nama: record.nama,
-          tanggal: record.tanggal,
-          jamMasuk: record.jamMasuk,
-          jamPulang: record.jamPulang,
-          jarak: record.jarak,
-          status: record.status
-        })
-        .then(res => {
-          if (res.status === 'success') {
-            Swal.fire({
-              icon: 'success',
-              title: 'Presensi Tersimpan ke Google!',
-              html: `Waktu: <b>${timeStr}</b><br>Status: <b>${record.status}</b><br>Jarak: ${record.jarak} meter`,
-              confirmColor: '#4f46e5'
-            });
-          } else {
-            Swal.fire('Peringatan GAS', res.message || 'Gagal menyimpan ke Google Sheets', 'warning');
-          }
-        })
-        .catch(err => {
-          Swal.fire('Gagal Koneksi Google', 'Tersimpan lokal, namun gagal kirim ke Google: ' + err.message, 'error');
-        });
-      } else {
-        // Visual Success (Mode Lokal)
-        Swal.fire({
-          icon: 'success',
-          title: 'Presensi Berhasil (Lokal)!',
-          html: `Waktu: <b>${timeStr}</b><br>Status: <b>${record.status}</b><br>Jarak: ${record.jarak} meter`,
-          confirmColor: '#4f46e5'
-        });
+          id: record.id, nip: record.nip, nama: record.nama,
+          tanggal: record.tanggal, jamMasuk: record.jamMasuk,
+          jamPulang: record.jamPulang, jarak: record.jarak, status: record.status
+        }).catch(err => console.error(err));
       }
 
-      // Prepare Direct WA Notification Link
-      const waText = `*KONFIRMASI PRESENSI EDUABSEN*\n\nNama: ${currentUser.nama}\nNIP: ${currentUser.nip}\nTanggal: ${todayStr}\nWaktu: ${timeStr}\nStatus: ${record.status}\nJarak GPS: ${record.jarak} Meter`;
+      Swal.fire({
+        icon: 'success',
+        title: `Presensi ${tipeAbsen} Berhasil!`,
+        html: `Waktu ${tipeAbsen}: <b>${timeStr}</b><br>Status: <b>${record.status}</b><br>Jarak: ${record.jarak}m`
+      });
+
+      const waText = `*KONFIRMASI PRESENSI ${tipeAbsen.toUpperCase()} EDUABSEN*
+
+Nama: ${currentUser.nama}
+Hari/Tgl: ${todayName}, ${todayStr}
+Jam Masuk: ${record.jamMasuk}
+Jam Pulang: ${record.jamPulang}
+Status: ${record.status}`;
       const waUrl = `https://wa.me/${currentUser.wa}?text=${encodeURIComponent(waText)}`;
-      
-      const waCard = document.getElementById('waShareCard');
-      const waBtn = document.getElementById('btnWaDirect');
-      waBtn.href = waUrl;
-      waCard.classList.remove('d-none');
+      document.getElementById('btnWaDirect').href = waUrl;
+      document.getElementById('waShareCard').classList.remove('d-none');
     }
 
     function loadGuruRiwayat() {
-      const attendance = getAttendance().filter(a => a.nip === currentUser.nip);
+      const attendance = getAttendance().filter(a => a.nip === currentUser.nip || a.nama === currentUser.nama);
       const listContainer = document.getElementById('guruRiwayatList');
       listContainer.innerHTML = '';
-
       if (attendance.length === 0) {
         listContainer.innerHTML = `<div class="text-center text-muted py-4">Belum ada riwayat absensi.</div>`;
         return;
       }
-
-      attendance.reverse().forEach(rec => {
-        let badgeColor = rec.status.includes('Terlambat') ? 'bg-warning' : 'bg-success';
+      [...attendance].reverse().forEach(rec => {
+        let badgeColor = rec.status.includes('Terlambat') ? 'bg-warning text-dark' : 'bg-success';
         listContainer.innerHTML += `
-          <div class="card glass-card border-0 p-3">
+          <div class="glass-card p-3">
             <div class="d-flex justify-content-between align-items-center mb-1">
               <span class="fw-bold text-dark">${rec.tanggal}</span>
               <span class="badge ${badgeColor}">${rec.status}</span>
@@ -1594,19 +1710,13 @@ function responseJSON(data) {
       });
     }
 
-    // ==========================================
-    // 6. UTILS & GAS CONFIG MODAL
-    // ==========================================
     function startRealtimeClock() {
       setInterval(() => {
         const now = new Date();
         const timeStr = now.toLocaleTimeString('id-ID', { hour12: false });
         const dateStr = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-
-        const clockEl = document.getElementById('realtimeClock');
-        const dateEl = document.getElementById('realtimeDate');
-        if (clockEl) clockEl.innerText = timeStr;
-        if (dateEl) dateEl.innerText = dateStr;
+        if (document.getElementById('realtimeClock')) document.getElementById('realtimeClock').innerText = timeStr;
+        if (document.getElementById('realtimeDate')) document.getElementById('realtimeDate').innerText = dateStr;
       }, 1000);
     }
 
@@ -1626,20 +1736,11 @@ function responseJSON(data) {
       updateConnectionBadge();
       bsModalGAS.hide();
       if (url) {
-        Swal.fire({ title: 'Menghubungkan ke Google...', didOpen: () => Swal.showLoading() });
-        const ok = await syncFromGAS(false);
-        if (ok) {
-          if (currentUser && currentUser.role === 'admin') {
-            loadAdminDashboardData();
-            loadGuruTable();
-            loadJadwalForm();
-            loadLokasiForm();
-            filterRekapData();
-          }
-          Swal.fire('Terhubung!', 'Berhasil terhubung dan sinkron dengan Google Sheets.', 'success');
-        }
+        Swal.fire({ title: 'Menghubungkan...', didOpen: () => Swal.showLoading() });
+        await syncFromGAS(false);
+        Swal.fire('Terhubung!', 'Berhasil terhubung ke Google Sheets.', 'success');
       } else {
-        Swal.fire('Mode Lokal Aktif', 'URL dikosongkan. Menggunakan LocalStorage.', 'info');
+        Swal.fire('Mode Lokal', 'Menggunakan LocalStorage.', 'info');
       }
     }
   </script>

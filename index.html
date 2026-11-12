@@ -734,41 +734,100 @@
           <p class="small text-muted">Buka Google Sheets baru -> Klik menu <b>Ekstensi -> Apps Script</b> -> Hapus kode lama dan tempel kode berikut lalu klik <b>Deploy -> Web App (Anyone)</b>:</p>
 
           <pre class="bg-dark text-light p-3 rounded-3 fs-7" style="max-height: 250px; overflow-y: auto;">
-// ==================== KODE GOOGLE APPS SCRIPT (GAS) ====================
+// ==================== KODE GOOGLE APPS SCRIPT (GAS) LENGKAP ====================
 function doGet(e) {
-  var action = e.parameter.action;
+  var action = (e && e.parameter) ? e.parameter.action : '';
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   
   if (action == 'getData') {
     var users = getSheetData(ss.getSheetByName('Users'));
     var attendance = getSheetData(ss.getSheetByName('Attendance'));
     var settings = getSheetData(ss.getSheetByName('Settings'));
-    return responseJSON({ users: users, attendance: attendance, settings: settings });
+    return responseJSON({ status: 'success', users: users, attendance: attendance, settings: settings });
   }
+  return responseJSON({ status: 'active', message: 'API EduAbsen Pro Siap Digunakan' });
 }
 
 function doPost(e) {
-  var data = JSON.parse(e.postData.contents);
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  
-  if (data.action == 'absen') {
-    var sheet = ss.getSheetByName('Attendance');
-    sheet.appendRow([data.id, data.nip, data.nama, data.tanggal, data.jamMasuk, data.jamPulang, data.jarak, data.status]);
-    return responseJSON({ status: 'success' });
+  try {
+    if (!e || !e.postData || !e.postData.contents) {
+      return responseJSON({ status: 'error', message: 'Data kosong' });
+    }
+    var data = JSON.parse(e.postData.contents);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    
+    if (data.action == 'absen') {
+      var sheet = ss.getSheetByName('Attendance');
+      var rows = sheet.getDataRange().getValues();
+      var updated = false;
+      
+      // Cek jika sudah absen masuk hari ini -> update jamPulang
+      for (var i = 1; i < rows.length; i++) {
+        if (String(rows[i][1]) === String(data.nip) && String(rows[i][3]) === String(data.tanggal)) {
+          sheet.getRange(i + 1, 6).setValue(data.jamPulang || '-');
+          updated = true;
+          break;
+        }
+      }
+      
+      if (!updated) {
+        sheet.appendRow([
+          data.id || ('att-' + new Date().getTime()),
+          data.nip || '-',
+          data.nama || '-',
+          data.tanggal || '-',
+          data.jamMasuk || '-',
+          data.jamPulang || '-',
+          data.jarak !== undefined ? data.jarak : 0,
+          data.status || '-'
+        ]);
+      }
+      return responseJSON({ status: 'success', mode: updated ? 'pulang' : 'masuk' });
+    }
+
+    if (data.action == 'syncUsers') {
+      var uSheet = ss.getSheetByName('Users');
+      uSheet.clearContents();
+      uSheet.appendRow(['id', 'nip', 'nama', 'role', 'jabatan', 'email', 'wa', 'password']);
+      (data.users || []).forEach(function(u) {
+        uSheet.appendRow([u.id, u.nip, u.nama, u.role, u.jabatan, u.email, u.wa, u.password]);
+      });
+      return responseJSON({ status: 'success' });
+    }
+
+    if (data.action == 'syncSettings') {
+      var sSheet = ss.getSheetByName('Settings');
+      sSheet.clearContents();
+      sSheet.appendRow(['jamMasuk', 'jamPulang', 'toleransiMenit', 'latSekolah', 'lngSekolah', 'radiusMeter']);
+      var st = data.settings;
+      sSheet.appendRow([st.jamMasuk, st.jamPulang, st.toleransiMenit, st.latSekolah, st.lngSekolah, st.radiusMeter]);
+      return responseJSON({ status: 'success' });
+    }
+
+    return responseJSON({ status: 'error', message: 'Action tidak dikenali' });
+  } catch (err) {
+    return responseJSON({ status: 'error', message: err.toString() });
   }
-  return responseJSON({ status: 'error' });
 }
 
 function getSheetData(sheet) {
-  if(!sheet) return [];
+  if (!sheet) return [];
   var rows = sheet.getDataRange().getValues();
+  if (rows.length < 2) return [];
   var headers = rows[0];
   var data = [];
   for (var i = 1; i < rows.length; i++) {
-    var row = rows[i];
     var obj = {};
     for (var j = 0; j < headers.length; j++) {
-      obj[headers[j]] = row[j];
+      var val = rows[i][j];
+      if (val instanceof Date) {
+        if (headers[j] === 'tanggal') {
+          val = Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+        } else {
+          val = Utilities.formatDate(val, Session.getScriptTimeZone(), 'HH:mm:ss');
+        }
+      }
+      obj[headers[j]] = val;
     }
     data.push(obj);
   }
@@ -834,11 +893,13 @@ function responseJSON(data) {
     // ==========================================
     // 2. INITIALIZATION ON LOAD
     // ==========================================
-    window.onload = function() {
+    window.onload = async function() {
       initLocalStorage();
       startRealtimeClock();
       bsModalGuru = new bootstrap.Modal(document.getElementById('modalGuru'));
       bsModalGAS = new bootstrap.Modal(document.getElementById('modalGAS'));
+      updateConnectionBadge();
+      await syncFromGAS(true);
 
       // Check Active Session
       const savedUser = sessionStorage.getItem('eduabsen_session');
@@ -847,6 +908,66 @@ function responseJSON(data) {
         renderViewForUser();
       }
     };
+
+    function getGASUrl() {
+      return (localStorage.getItem(STORAGE_GAS_URL) || '').trim();
+    }
+
+    function updateConnectionBadge() {
+      const badge = document.getElementById('sessionStatusBadge');
+      if (!badge) return;
+      if (getGASUrl()) {
+        badge.className = 'badge badge-soft-success d-none d-md-inline-block px-3 py-2';
+        badge.innerHTML = '<i class="fa-solid fa-cloud-check me-1"></i> Terhubung Google Sheets';
+      } else {
+        badge.className = 'badge badge-soft-warning d-none d-md-inline-block px-3 py-2';
+        badge.innerHTML = '<i class="fa-solid fa-database me-1"></i> Mode Simulasi LocalStorage';
+      }
+    }
+
+    async function syncFromGAS(silent = false) {
+      const gasUrl = getGASUrl();
+      if (!gasUrl) return false;
+      try {
+        const res = await fetch(`${gasUrl}?action=getData`);
+        const json = await res.json();
+        if (json.users && json.users.length > 0) {
+          localStorage.setItem(STORAGE_USERS, JSON.stringify(json.users));
+        }
+        if (json.attendance) {
+          localStorage.setItem(STORAGE_ATTENDANCE, JSON.stringify(json.attendance));
+        }
+        if (json.settings && json.settings.length > 0) {
+          const s = json.settings[0];
+          localStorage.setItem(STORAGE_SETTINGS, JSON.stringify({
+            jamMasuk: String(s.jamMasuk || '07:00').slice(0, 5),
+            jamPulang: String(s.jamPulang || '15:00').slice(0, 5),
+            toleransiMenit: Number(s.toleransiMenit ?? 15),
+            latSekolah: Number(s.latSekolah ?? -6.175392),
+            lngSekolah: Number(s.lngSekolah ?? 106.827153),
+            radiusMeter: Number(s.radiusMeter ?? 100)
+          }));
+        }
+        return true;
+      } catch (err) {
+        console.error('GAS Sync Error:', err);
+        if (!silent) {
+          Swal.fire('Gagal Sinkronisasi', 'Tidak dapat mengambil data dari Google Sheets: ' + err.message, 'error');
+        }
+        return false;
+      }
+    }
+
+    async function postToGAS(payload) {
+      const gasUrl = getGASUrl();
+      if (!gasUrl) return { status: 'local' };
+      const res = await fetch(gasUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    }
 
     function initLocalStorage() {
       if (!localStorage.getItem(STORAGE_USERS)) {
@@ -1032,8 +1153,11 @@ function responseJSON(data) {
       });
     }
 
-    function refreshAdminData() {
+    async function refreshAdminData() {
+      await syncFromGAS(false);
       loadAdminDashboardData();
+      loadGuruTable();
+      filterRekapData();
       Swal.fire({ icon: 'success', title: 'Data Diperbarui', timer: 1000, showConfirmButton: false });
     }
 
@@ -1090,6 +1214,7 @@ function responseJSON(data) {
       }
 
       localStorage.setItem(STORAGE_USERS, JSON.stringify(users));
+      postToGAS({ action: 'syncUsers', users: users }).catch(console.error);
       bsModalGuru.hide();
       loadGuruTable();
       loadAdminDashboardData();
@@ -1125,6 +1250,7 @@ function responseJSON(data) {
         if (result.isConfirmed) {
           let users = getUsers().filter(u => u.id !== id);
           localStorage.setItem(STORAGE_USERS, JSON.stringify(users));
+          postToGAS({ action: 'syncUsers', users: users }).catch(console.error);
           loadGuruTable();
           loadAdminDashboardData();
           Swal.fire('Terhapus', 'Data guru telah dihapus.', 'success');
@@ -1148,6 +1274,7 @@ function responseJSON(data) {
       st.toleransiMenit = parseInt(document.getElementById('setToleransi').value) || 0;
 
       localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(st));
+      postToGAS({ action: 'syncSettings', settings: st }).catch(console.error);
       Swal.fire('Berhasil', 'Pengaturan jam kerja tersimpan.', 'success');
     }
 
@@ -1166,6 +1293,7 @@ function responseJSON(data) {
       st.radiusMeter = parseInt(document.getElementById('setRadius').value);
 
       localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(st));
+      postToGAS({ action: 'syncSettings', settings: st }).catch(console.error);
       Swal.fire('Berhasil', 'Koordinat lokasi sekolah tersimpan.', 'success');
     }
 
@@ -1385,13 +1513,48 @@ function responseJSON(data) {
 
       localStorage.setItem(STORAGE_ATTENDANCE, JSON.stringify(attendance));
 
-      // Visual Success
-      Swal.fire({
-        icon: 'success',
-        title: 'Presensi Berhasil!',
-        html: `Waktu: <b>${timeStr}</b><br>Status: <b>${record.status}</b><br>Jarak: ${record.jarak} meter`,
-        confirmColor: '#4f46e5'
-      });
+      const gasUrl = getGASUrl();
+      if (gasUrl) {
+        Swal.fire({
+          title: 'Menyimpan ke Google Drive...',
+          allowOutsideClick: false,
+          didOpen: () => Swal.showLoading()
+        });
+        postToGAS({
+          action: 'absen',
+          id: record.id,
+          nip: record.nip,
+          nama: record.nama,
+          tanggal: record.tanggal,
+          jamMasuk: record.jamMasuk,
+          jamPulang: record.jamPulang,
+          jarak: record.jarak,
+          status: record.status
+        })
+        .then(res => {
+          if (res.status === 'success') {
+            Swal.fire({
+              icon: 'success',
+              title: 'Presensi Tersimpan ke Google!',
+              html: `Waktu: <b>${timeStr}</b><br>Status: <b>${record.status}</b><br>Jarak: ${record.jarak} meter`,
+              confirmColor: '#4f46e5'
+            });
+          } else {
+            Swal.fire('Peringatan GAS', res.message || 'Gagal menyimpan ke Google Sheets', 'warning');
+          }
+        })
+        .catch(err => {
+          Swal.fire('Gagal Koneksi Google', 'Tersimpan lokal, namun gagal kirim ke Google: ' + err.message, 'error');
+        });
+      } else {
+        // Visual Success (Mode Lokal)
+        Swal.fire({
+          icon: 'success',
+          title: 'Presensi Berhasil (Lokal)!',
+          html: `Waktu: <b>${timeStr}</b><br>Status: <b>${record.status}</b><br>Jarak: ${record.jarak} meter`,
+          confirmColor: '#4f46e5'
+        });
+      }
 
       // Prepare Direct WA Notification Link
       const waText = `*KONFIRMASI PRESENSI EDUABSEN*\n\nNama: ${currentUser.nama}\nNIP: ${currentUser.nip}\nTanggal: ${todayStr}\nWaktu: ${timeStr}\nStatus: ${record.status}\nJarak GPS: ${record.jarak} Meter`;
@@ -1457,11 +1620,27 @@ function responseJSON(data) {
       bsModalGAS.show();
     }
 
-    function saveGASUrl() {
+    async function saveGASUrl() {
       const url = document.getElementById('gasUrlInput').value.trim();
       localStorage.setItem(STORAGE_GAS_URL, url);
+      updateConnectionBadge();
       bsModalGAS.hide();
-      Swal.fire('GAS API Disimpan', 'Konfigurasi URL Web App Google Apps Script tersimpan.', 'success');
+      if (url) {
+        Swal.fire({ title: 'Menghubungkan ke Google...', didOpen: () => Swal.showLoading() });
+        const ok = await syncFromGAS(false);
+        if (ok) {
+          if (currentUser && currentUser.role === 'admin') {
+            loadAdminDashboardData();
+            loadGuruTable();
+            loadJadwalForm();
+            loadLokasiForm();
+            filterRekapData();
+          }
+          Swal.fire('Terhubung!', 'Berhasil terhubung dan sinkron dengan Google Sheets.', 'success');
+        }
+      } else {
+        Swal.fire('Mode Lokal Aktif', 'URL dikosongkan. Menggunakan LocalStorage.', 'info');
+      }
     }
   </script>
 </body>

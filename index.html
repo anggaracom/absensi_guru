@@ -344,9 +344,6 @@
   <div id="loginSection" class="container-fluid min-vh-100 d-flex justify-content-center align-items-center bg-light p-3">
     <div class="card border-0 shadow-lg rounded-4 p-4 p-md-5" style="width: 100%; max-width: 420px; background: #ffffff;">
       <div class="text-center mb-4">
-        <!-- <div class="d-inline-flex p-3 rounded-circle bg-primary bg-opacity-10 text-primary mb-3">
-          <i class="fa-solid fa-school-flag fs-2"></i>
-        </div> -->
         <h4 class="fw-bold mb-1" style="color: var(--text-dark);">FORTAL ABSENSI</h4>
         <p class="text-muted small">Sistem Presensi Guru Al Yusdah</p>
       </div>
@@ -365,7 +362,7 @@
           <label class="form-label small fw-bold text-secondary" id="loginLabelId">Username Guru (Nama Lengkap)</label>
           <div class="input-group">
             <span class="input-group-text bg-white border-end-0 text-muted rounded-start-3"><i class="fa-solid fa-user"></i></span>
-            <input type="text" id="loginIdInput" class="form-control border-start-0 ps-0 bg-white" placeholder="" required>
+            <input type="text" id="loginIdInput" class="form-control border-start-0 ps-0 bg-white" placeholder="Contoh: TIO ANGGARA" required>
           </div>
         </div>
 
@@ -373,7 +370,7 @@
           <label class="form-label small fw-bold text-secondary" id="loginLabelPassword">Kata Sandi (Tanggal Lahir: DDMMYYYY)</label>
           <div class="input-group">
             <span class="input-group-text bg-white border-end-0 text-muted rounded-start-3"><i class="fa-solid fa-lock"></i></span>
-            <input type="password" id="loginPasswordInput" class="form-control border-start-0 ps-0 bg-white" placeholder="" required>
+            <input type="password" id="loginPasswordInput" class="form-control border-start-0 ps-0 bg-white" placeholder="Contoh: 20122004" required>
           </div>
           <div class="form-text small">Gunakan format TanggalBulanTahun tanpa spasi (cth: 20122004)</div>
         </div>
@@ -450,7 +447,7 @@
           <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
             <div>
               <h4 class="fw-bold mb-0">Dashboard Ringkasan Admin</h4>
-              <p class="text-muted small mb-0">Pantau kehadiran guru sesuai jadwal mengajar harian</p>
+              <p class="text-muted small mb-0">Pantau kehadiran guru sesuai jadwal mengajar harian (Auto-Sync Aktif)</p>
             </div>
             <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="refreshAdminData()">
               <i class="fa-solid fa-rotate me-1"></i> Refresh Data
@@ -828,13 +825,16 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
+          <div class="alert alert-info small">
+            <i class="bi bi-info-circle-fill me-1"></i> URL utama sudah tertanam otomatis di dalam sistem agar semua HP langsung tersinkron. Gunakan kolom di bawah hanya jika Anda ingin mengganti ke URL baru sementara di browser ini.
+          </div>
           <div class="mb-4">
             <label class="form-label fw-semibold">Google Apps Script Web App URL</label>
             <div class="input-group">
               <input type="url" id="gasUrlInput" class="form-control" placeholder="https://script.google.com/macros/s/.../exec">
               <button class="btn btn-primary" onclick="saveGASUrl()">Simpan URL</button>
             </div>
-            <div class="form-text">Kosongkan jika menggunakan Mode Lokal.</div>
+            <div class="form-text">Kosongkan untuk kembali menggunakan URL Bawaan Sistem.</div>
           </div>
         </div>
       </div>
@@ -848,14 +848,19 @@
 
   <!-- APP JAVASCRIPT LOGIC -->
   <script>
+    // =========================================================================
+    // TEMPELKAN URL WEB APP GOOGLE APPS SCRIPT (/exec) ANDA DI SINI
+    // Agar semua HP dan Browser otomatis tersinkron tanpa perlu input manual!
+    // =========================================================================
+    const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbwc4TKJkwFRXHs1Tb6RfuCt_XwqXPB0me0xornSJ1nEe4YnfGX5qiCqqnebJq2-6Hti6A/exec';
+
     const DEFAULT_SETTINGS = {
       toleransiMenit: 15,
-      latSekolah: -6.175392,
-      lngSekolah: 106.827153,
+      latSekolah: 3.624547,
+      lngSekolah: 98.892091,
       radiusMeter: 100
     };
 
-    // Data awal sudah disesuaikan dengan format DDMMYYYY (TanggalBulanTahun) dan menyertakan TIO ANGGARA
     const DEFAULT_USERS = [
       { id: "1", username: "admin", nama: "Administrator", role: "admin", jabatan: "Operator Sekolah", email: "admin@sekolah.sch.id", wa: "628123456789", password: "admin123", hariMengajar: ["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"], jamMasuk: "07:00", jamPulang: "15:00" },
       { id: "2", username: "TIO ANGGARA", nama: "TIO ANGGARA", role: "guru", jabatan: "Guru Produktif", email: "tio@sekolah.sch.id", wa: "6281234567890", password: "20122004", rawTglLahir: "2004-12-20", hariMengajar: ["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"], jamMasuk: "07:00", jamPulang: "15:00" },
@@ -871,7 +876,6 @@
     let cameraStream = null;
     let isFaceDetected = false;
 
-    // Menggunakan versi storage v2 agar data default terbaru (TIO ANGGARA) otomatis dimuat
     const STORAGE_USERS = 'eduabsen_users_v2';
     const STORAGE_ATTENDANCE = 'eduabsen_attendance';
     const STORAGE_SETTINGS = 'eduabsen_settings';
@@ -880,7 +884,6 @@
     let bsModalGuru = null;
     let bsModalGAS = null;
 
-    // Helper: Konversi YYYY-MM-DD ke DDMMYYYY (misal 2004-12-20 -> 20122004)
     function formatToDDMMYYYY(dateStr) {
       if (!dateStr) return '';
       const clean = String(dateStr).trim();
@@ -891,7 +894,6 @@
       return clean.replace(/[^0-9]/g, '');
     }
 
-    // Helper: Konversi DDMMYYYY ke YYYY-MM-DD untuk input type="date" saat Edit Guru
     function formatToYYYYMMDD(ddmmyyyy) {
       if (!ddmmyyyy) return '';
       const clean = String(ddmmyyyy).trim();
@@ -918,6 +920,30 @@
       updateConnectionBadge();
       await syncFromGAS(true);
 
+      // AUTO-SYNC BERKALA SETIAP 15 DETIK
+      // Setiap perubahan oleh Admin otomatis sinkron ke semua HP dan Web Browser tanpa refresh manual
+      setInterval(async () => {
+        if (getGASUrl() && currentUser) {
+          const updated = await syncFromGAS(true);
+          if (updated) {
+            if (currentUser.role === 'admin') {
+              loadAdminDashboardData();
+              loadGuruTable();
+              filterRekapData();
+            } else {
+              const freshUser = getUsers().find(u => u.id === currentUser.id || u.nama === currentUser.nama);
+              if (freshUser) {
+                currentUser = freshUser;
+                sessionStorage.setItem('eduabsen_session', JSON.stringify(currentUser));
+                checkTodayTeacherSchedule();
+              }
+              calculateDistance();
+              updateGuruAttendanceUIState();
+            }
+          }
+        }
+      }, 15000);
+
       const savedUser = sessionStorage.getItem('eduabsen_session');
       if (savedUser) {
         currentUser = JSON.parse(savedUser);
@@ -926,7 +952,12 @@
     };
 
     function getGASUrl() {
-      return (localStorage.getItem(STORAGE_GAS_URL) || '').trim();
+      const overrideUrl = (localStorage.getItem(STORAGE_GAS_URL) || '').trim();
+      if (overrideUrl) return overrideUrl;
+      if (DEFAULT_GAS_URL && !DEFAULT_GAS_URL.includes('GANTI_DENGAN_URL_GAS_ANDA')) {
+        return DEFAULT_GAS_URL.trim();
+      }
+      return '';
     }
 
     function updateConnectionBadge() {
@@ -934,7 +965,7 @@
       if (!badge) return;
       if (getGASUrl()) {
         badge.className = 'badge bg-success text-white d-none d-md-inline-block px-3 py-2';
-        badge.innerHTML = '<i class="fa-solid fa-cloud-check me-1"></i> Terhubung Google Sheets';
+        badge.innerHTML = '<i class="fa-solid fa-cloud-check me-1"></i> Terhubung Google Sheets (Auto-Sync)';
       } else {
         badge.className = 'badge bg-warning text-dark d-none d-md-inline-block px-3 py-2';
         badge.innerHTML = '<i class="fa-solid fa-database me-1"></i> Mode Simulasi LocalStorage';
@@ -945,7 +976,7 @@
       const gasUrl = getGASUrl();
       if (!gasUrl) return false;
       try {
-        const res = await fetch(`${gasUrl}?action=getData`);
+        const res = await fetch(`${gasUrl}?action=getData&_t=${Date.now()}`);
         const json = await res.json();
         if (json.users && json.users.length > 0) {
           localStorage.setItem(STORAGE_USERS, JSON.stringify(json.users));
@@ -957,8 +988,8 @@
           const s = json.settings[0];
           localStorage.setItem(STORAGE_SETTINGS, JSON.stringify({
             toleransiMenit: Number(s.toleransiMenit ?? 15),
-            latSekolah: Number(s.latSekolah ?? -6.175392),
-            lngSekolah: Number(s.lngSekolah ?? 106.827153),
+            latSekolah: Number(s.latSekolah ?? 3.624547),
+            lngSekolah: Number(s.lngSekolah ?? 98.892091),
             radiusMeter: Number(s.radiusMeter ?? 100)
           }));
         }
@@ -1018,7 +1049,6 @@
 
     async function handleLogin(e) {
       e.preventDefault();
-      // Hapus spasi ganda/berlebih dan samakan huruf kecil agar fleksibel
       const inputId = document.getElementById('loginIdInput').value.replace(/\s+/g, ' ').trim().toLowerCase();
       const inputPw = document.getElementById('loginPasswordInput').value.trim();
 
@@ -1030,7 +1060,6 @@
         const unama = (u.nama || '').replace(/\s+/g, ' ').trim().toLowerCase();
         const matchUser = (uname === inputId || unama === inputId);
 
-        // Cocokkan password langsung atau hasil konversi DDMMYYYY
         const storedPw = String(u.password || '').trim();
         const formattedStoredPw = u.role === 'guru' ? formatToDDMMYYYY(storedPw) : storedPw;
         const cleanInputPw = u.role === 'guru' ? inputPw.replace(/[^0-9]/g, '') : inputPw;
@@ -1244,6 +1273,8 @@
       await syncFromGAS(false);
       loadAdminDashboardData();
       loadGuruTable();
+      loadJadwalForm();
+      loadLokasiForm();
       filterRekapData();
       Swal.fire({ icon: 'success', title: 'Data Diperbarui', timer: 1000, showConfirmButton: false });
     }
@@ -1298,7 +1329,7 @@
         jabatan: document.getElementById('guruJabatan').value.trim(),
         email: document.getElementById('guruEmail').value.trim(),
         wa: document.getElementById('guruWa').value.trim(),
-        password: passwordDDMMYYYY, // Tersimpan dalam format DDMMYYYY (misal 20122004)
+        password: passwordDDMMYYYY,
         rawTglLahir: rawTglLahir,
         hariMengajar: selectedDays,
         jamMasuk: document.getElementById('guruJamMasuk').value,
@@ -1316,7 +1347,7 @@
       bsModalGuru.hide();
       loadGuruTable();
       loadAdminDashboardData();
-      Swal.fire('Berhasil', `Data guru disimpan! Password login: ${passwordDDMMYYYY}`, 'success');
+      Swal.fire('Berhasil', `Data guru disimpan & tersinkron! Password login: ${passwordDDMMYYYY}`, 'success');
     }
 
     function editGuru(id) {
@@ -1357,7 +1388,7 @@
           postToGAS({ action: 'syncUsers', users: users }).catch(console.error);
           loadGuruTable();
           loadAdminDashboardData();
-          Swal.fire('Terhapus', 'Data guru telah dihapus.', 'success');
+          Swal.fire('Terhapus', 'Data guru telah dihapus & tersinkron.', 'success');
         }
       });
     }
@@ -1372,7 +1403,8 @@
       const st = getSettings();
       st.toleransiMenit = parseInt(document.getElementById('setToleransi').value) || 0;
       localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(st));
-      Swal.fire('Berhasil', 'Toleransi keterlambatan tersimpan.', 'success');
+      postToGAS({ action: 'syncSettings', settings: st }).catch(console.error);
+      Swal.fire('Berhasil', 'Toleransi keterlambatan tersimpan & tersinkron ke semua perangkat.', 'success');
     }
 
     function loadLokasiForm() {
@@ -1389,7 +1421,8 @@
       st.lngSekolah = parseFloat(document.getElementById('setLng').value);
       st.radiusMeter = parseInt(document.getElementById('setRadius').value);
       localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(st));
-      Swal.fire('Berhasil', 'Koordinat lokasi sekolah tersimpan.', 'success');
+      postToGAS({ action: 'syncSettings', settings: st }).catch(console.error);
+      Swal.fire('Berhasil', 'Koordinat lokasi sekolah tersimpan & tersinkron ke semua perangkat.', 'success');
     }
 
     function getCurrentAdminLocation() {
@@ -1722,7 +1755,10 @@ Status: ${record.status}`;
 
     function getTodayDateString() {
       const d = new Date();
-      return d.toISOString().split('T')[0];
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
     }
 
     function openGASConfigModal() {
@@ -1735,7 +1771,7 @@ Status: ${record.status}`;
       localStorage.setItem(STORAGE_GAS_URL, url);
       updateConnectionBadge();
       bsModalGAS.hide();
-      if (url) {
+      if (url || getGASUrl()) {
         Swal.fire({ title: 'Menghubungkan...', didOpen: () => Swal.showLoading() });
         await syncFromGAS(false);
         Swal.fire('Terhubung!', 'Berhasil terhubung ke Google Sheets.', 'success');

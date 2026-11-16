@@ -849,8 +849,7 @@
   <!-- APP JAVASCRIPT LOGIC -->
   <script>
     // =========================================================================
-    // TEMPELKAN URL WEB APP GOOGLE APPS SCRIPT (/exec) ANDA DI SINI
-    // Agar semua HP dan Browser otomatis tersinkron tanpa perlu input manual!
+    // URL WEB APP GOOGLE APPS SCRIPT (/exec) TERINTEGRASI LANGSUNG (STRICT ONLINE)
     // =========================================================================
     const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbwc4TKJkwFRXHs1Tb6RfuCt_XwqXPB0me0xornSJ1nEe4YnfGX5qiCqqnebJq2-6Hti6A/exec';
 
@@ -861,14 +860,11 @@
       radiusMeter: 100
     };
 
-    const DEFAULT_USERS = [
-      { id: "1", username: "admin", nama: "Administrator", role: "admin", jabatan: "Operator Sekolah", email: "admin@sekolah.sch.id", wa: "628123456789", password: "admin123", hariMengajar: ["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"], jamMasuk: "07:00", jamPulang: "15:00" },
-      { id: "2", username: "TIO ANGGARA", nama: "TIO ANGGARA", role: "guru", jabatan: "Guru Produktif", email: "tio@sekolah.sch.id", wa: "6281234567890", password: "20122004", rawTglLahir: "2004-12-20", hariMengajar: ["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"], jamMasuk: "07:00", jamPulang: "15:00" },
-      { id: "3", username: "Budi Santoso, S.Pd", nama: "Budi Santoso, S.Pd", role: "guru", jabatan: "Guru Matematika", email: "budi@sekolah.sch.id", wa: "6281299990000", password: "01011985", rawTglLahir: "1985-01-01", hariMengajar: ["Senin","Rabu","Jumat"], jamMasuk: "07:00", jamPulang: "14:00" },
-      { id: "4", username: "Siti Rahma, M.Pd", nama: "Siti Rahma, M.Pd", role: "guru", jabatan: "Guru Bahasa Indonesia", email: "siti@sekolah.sch.id", wa: "6281288881111", password: "04031990", rawTglLahir: "1990-03-04", hariMengajar: ["Selasa","Kamis","Sabtu"], jamMasuk: "07:30", jamPulang: "14:30" }
-    ];
-
-    const DEFAULT_ATTENDANCE = [];
+    // Variabel Memori Utama (Langsung dari Server Google Sheets, BUKAN LocalStorage)
+    let appUsers = [];
+    let appAttendance = [];
+    let appSettings = { ...DEFAULT_SETTINGS };
+    let isServerConnected = false;
 
     let currentUser = null;
     let currentLoginRole = 'guru';
@@ -876,9 +872,6 @@
     let cameraStream = null;
     let isFaceDetected = false;
 
-    const STORAGE_USERS = 'eduabsen_users_v2';
-    const STORAGE_ATTENDANCE = 'eduabsen_attendance';
-    const STORAGE_SETTINGS = 'eduabsen_settings';
     const STORAGE_GAS_URL = 'eduabsen_gas_url';
 
     let bsModalGuru = null;
@@ -907,8 +900,17 @@
       return '';
     }
 
+    // Bersihkan sisa LocalStorage lama agar tidak ada data lokal tertinggal
+    function clearLegacyLocalStorage() {
+      try {
+        localStorage.removeItem('eduabsen_users_v2');
+        localStorage.removeItem('eduabsen_attendance');
+        localStorage.removeItem('eduabsen_settings');
+      } catch (e) {}
+    }
+
     window.onload = async function() {
-      initLocalStorage();
+      clearLegacyLocalStorage();
       startRealtimeClock();
       bsModalGuru = new bootstrap.Modal(document.getElementById('modalGuru'));
       bsModalGAS = new bootstrap.Modal(document.getElementById('modalGAS'));
@@ -917,11 +919,10 @@
       document.getElementById('filterBulan').value = String(currentMonth);
       document.getElementById('filterTahun').value = new Date().getFullYear();
 
-      updateConnectionBadge();
-      await syncFromGAS(true);
+      // Langsung hubungkan dan tarik data dari server saat aplikasi dibuka
+      await syncFromGAS(false);
 
       // AUTO-SYNC BERKALA SETIAP 15 DETIK
-      // Setiap perubahan oleh Admin otomatis sinkron ke semua HP dan Web Browser tanpa refresh manual
       setInterval(async () => {
         if (getGASUrl() && currentUser) {
           const updated = await syncFromGAS(true);
@@ -945,7 +946,7 @@
       }, 15000);
 
       const savedUser = sessionStorage.getItem('eduabsen_session');
-      if (savedUser) {
+      if (savedUser && isServerConnected) {
         currentUser = JSON.parse(savedUser);
         renderViewForUser();
       }
@@ -960,66 +961,87 @@
       return '';
     }
 
-    function updateConnectionBadge() {
+    function updateConnectionBadge(connected) {
       const badge = document.getElementById('sessionStatusBadge');
       if (!badge) return;
-      if (getGASUrl()) {
+      if (connected) {
         badge.className = 'badge bg-success text-white d-none d-md-inline-block px-3 py-2';
-        badge.innerHTML = '<i class="fa-solid fa-cloud-check me-1"></i> Terhubung Google Sheets (Auto-Sync)';
+        badge.innerHTML = '<i class="fa-solid fa-cloud-check me-1"></i> Terhubung Google Sheets (Online)';
       } else {
-        badge.className = 'badge bg-warning text-dark d-none d-md-inline-block px-3 py-2';
-        badge.innerHTML = '<i class="fa-solid fa-database me-1"></i> Mode Simulasi LocalStorage';
+        badge.className = 'badge bg-danger text-white d-none d-md-inline-block px-3 py-2';
+        badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> Terputus dari Server';
       }
     }
 
     async function syncFromGAS(silent = false) {
       const gasUrl = getGASUrl();
-      if (!gasUrl) return false;
+      if (!gasUrl) {
+        isServerConnected = false;
+        updateConnectionBadge(false);
+        return false;
+      }
       try {
-        const res = await fetch(`${gasUrl}?action=getData&_t=${Date.now()}`);
+        const res = await fetch(`${gasUrl}?action=getData&_t=${Date.now()}`, {
+          method: 'GET',
+          redirect: 'follow'
+        });
+        if (!res.ok) throw new Error('HTTP Error ' + res.status);
         const json = await res.json();
-        if (json.users && json.users.length > 0) {
-          localStorage.setItem(STORAGE_USERS, JSON.stringify(json.users));
-        }
-        if (json.attendance) {
-          localStorage.setItem(STORAGE_ATTENDANCE, JSON.stringify(json.attendance));
-        }
-        if (json.settings && json.settings.length > 0) {
+        if (json.status === 'error') throw new Error(json.message || 'Server Error');
+
+        appUsers = Array.isArray(json.users) ? json.users : [];
+        appAttendance = Array.isArray(json.attendance) ? json.attendance : [];
+        if (Array.isArray(json.settings) && json.settings.length > 0) {
           const s = json.settings[0];
-          localStorage.setItem(STORAGE_SETTINGS, JSON.stringify({
+          appSettings = {
             toleransiMenit: Number(s.toleransiMenit ?? 15),
             latSekolah: Number(s.latSekolah ?? 3.624547),
             lngSekolah: Number(s.lngSekolah ?? 98.892091),
             radiusMeter: Number(s.radiusMeter ?? 100)
-          }));
+          };
         }
+        isServerConnected = true;
+        updateConnectionBadge(true);
         return true;
       } catch (err) {
         console.error('GAS Sync Error:', err);
+        isServerConnected = false;
+        updateConnectionBadge(false);
+        if (!silent) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Gagal Terhubung ke Database',
+            text: 'Koneksi ke Google Sheets gagal. Data tidak disimpan secara lokal. Pastikan internet aktif dan Deployment GAS diatur ke "Anyone".'
+          });
+        }
         return false;
       }
     }
 
     async function postToGAS(payload) {
       const gasUrl = getGASUrl();
-      if (!gasUrl) return { status: 'local' };
+      if (!gasUrl) {
+        throw new Error('URL Google Apps Script belum diatur.');
+      }
       const res = await fetch(gasUrl, {
         method: 'POST',
+        redirect: 'follow',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload)
       });
-      return await res.json();
+      if (!res.ok) {
+        throw new Error('Gagal mengirim data ke server (HTTP ' + res.status + ')');
+      }
+      const json = await res.json();
+      if (json.status !== 'success') {
+        throw new Error(json.message || 'Server gagal memproses permintaan.');
+      }
+      return json;
     }
 
-    function initLocalStorage() {
-      if (!localStorage.getItem(STORAGE_USERS)) localStorage.setItem(STORAGE_USERS, JSON.stringify(DEFAULT_USERS));
-      if (!localStorage.getItem(STORAGE_ATTENDANCE)) localStorage.setItem(STORAGE_ATTENDANCE, JSON.stringify(DEFAULT_ATTENDANCE));
-      if (!localStorage.getItem(STORAGE_SETTINGS)) localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
-    }
-
-    function getSettings() { return JSON.parse(localStorage.getItem(STORAGE_SETTINGS)) || DEFAULT_SETTINGS; }
-    function getUsers() { return JSON.parse(localStorage.getItem(STORAGE_USERS)) || DEFAULT_USERS; }
-    function getAttendance() { return JSON.parse(localStorage.getItem(STORAGE_ATTENDANCE)) || DEFAULT_ATTENDANCE; }
+    function getSettings() { return appSettings; }
+    function getUsers() { return appUsers; }
+    function getAttendance() { return appAttendance; }
 
     function switchLoginRole(role) {
       currentLoginRole = role;
@@ -1052,7 +1074,18 @@
       const inputId = document.getElementById('loginIdInput').value.replace(/\s+/g, ' ').trim().toLowerCase();
       const inputPw = document.getElementById('loginPasswordInput').value.trim();
 
-      if (getGASUrl()) { await syncFromGAS(true); }
+      Swal.fire({ title: 'Menghubungkan ke Database...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      const connected = await syncFromGAS(true);
+      Swal.close();
+
+      if (!connected) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Gagal Terhubung!',
+          text: 'Tidak dapat terhubung ke server Google Sheets. Periksa koneksi internet atau pengaturan URL Web App GAS Anda.'
+        });
+        return;
+      }
 
       const users = getUsers();
       const found = users.find(u => {
@@ -1270,13 +1303,16 @@
     }
 
     async function refreshAdminData() {
-      await syncFromGAS(false);
-      loadAdminDashboardData();
-      loadGuruTable();
-      loadJadwalForm();
-      loadLokasiForm();
-      filterRekapData();
-      Swal.fire({ icon: 'success', title: 'Data Diperbarui', timer: 1000, showConfirmButton: false });
+      Swal.fire({ title: 'Menyinkronkan...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      const ok = await syncFromGAS(false);
+      if (ok) {
+        loadAdminDashboardData();
+        loadGuruTable();
+        loadJadwalForm();
+        loadLokasiForm();
+        filterRekapData();
+        Swal.fire({ icon: 'success', title: 'Data Terhubung & Diperbarui', timer: 1000, showConfirmButton: false });
+      }
     }
 
     function loadGuruTable() {
@@ -1310,10 +1346,10 @@
       bsModalGuru.show();
     }
 
-    function saveGuru(e) {
+    async function saveGuru(e) {
       e.preventDefault();
       const id = document.getElementById('guruEditId').value;
-      let users = getUsers();
+      const currentUsers = getUsers();
 
       const selectedDays = [];
       document.querySelectorAll('.day-check:checked').forEach(cb => selectedDays.push(cb.value));
@@ -1337,17 +1373,22 @@
         role: 'guru'
       };
 
-      if (id) {
-        users = users.map(u => u.id === id ? newGuru : u);
-      } else {
-        users.push(newGuru);
+      const updatedUsers = id
+        ? currentUsers.map(u => u.id === id ? newGuru : u)
+        : [...currentUsers, newGuru];
+
+      Swal.fire({ title: 'Menyimpan ke Server...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+      try {
+        await postToGAS({ action: 'syncUsers', users: updatedUsers });
+        appUsers = updatedUsers;
+        bsModalGuru.hide();
+        loadGuruTable();
+        loadAdminDashboardData();
+        Swal.fire('Berhasil', `Data guru tersimpan di Google Sheets! Password login: ${passwordDDMMYYYY}`, 'success');
+      } catch (err) {
+        Swal.fire('Gagal Menyimpan!', 'Tidak terhubung ke Google Sheets (' + err.message + '). Data TIDAK disimpan.', 'error');
       }
-      localStorage.setItem(STORAGE_USERS, JSON.stringify(users));
-      postToGAS({ action: 'syncUsers', users: users }).catch(console.error);
-      bsModalGuru.hide();
-      loadGuruTable();
-      loadAdminDashboardData();
-      Swal.fire('Berhasil', `Data guru disimpan & tersinkron! Password login: ${passwordDDMMYYYY}`, 'success');
     }
 
     function editGuru(id) {
@@ -1381,14 +1422,19 @@
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
         confirmButtonText: 'Ya, Hapus'
-      }).then((result) => {
+      }).then(async (result) => {
         if (result.isConfirmed) {
-          let users = getUsers().filter(u => u.id !== id);
-          localStorage.setItem(STORAGE_USERS, JSON.stringify(users));
-          postToGAS({ action: 'syncUsers', users: users }).catch(console.error);
-          loadGuruTable();
-          loadAdminDashboardData();
-          Swal.fire('Terhapus', 'Data guru telah dihapus & tersinkron.', 'success');
+          const updatedUsers = getUsers().filter(u => u.id !== id);
+          Swal.fire({ title: 'Menghapus di Server...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+          try {
+            await postToGAS({ action: 'syncUsers', users: updatedUsers });
+            appUsers = updatedUsers;
+            loadGuruTable();
+            loadAdminDashboardData();
+            Swal.fire('Terhapus', 'Data guru berhasil dihapus dari Google Sheets.', 'success');
+          } catch (err) {
+            Swal.fire('Gagal Menghapus!', 'Tidak terhubung ke Google Sheets (' + err.message + '). Perubahan dibatalkan.', 'error');
+          }
         }
       });
     }
@@ -1398,13 +1444,21 @@
       document.getElementById('setToleransi').value = st.toleransiMenit;
     }
 
-    function saveJadwal(e) {
+    async function saveJadwal(e) {
       e.preventDefault();
-      const st = getSettings();
-      st.toleransiMenit = parseInt(document.getElementById('setToleransi').value) || 0;
-      localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(st));
-      postToGAS({ action: 'syncSettings', settings: st }).catch(console.error);
-      Swal.fire('Berhasil', 'Toleransi keterlambatan tersimpan & tersinkron ke semua perangkat.', 'success');
+      const updatedSettings = {
+        ...getSettings(),
+        toleransiMenit: parseInt(document.getElementById('setToleransi').value) || 0
+      };
+
+      Swal.fire({ title: 'Menyimpan ke Server...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      try {
+        await postToGAS({ action: 'syncSettings', settings: updatedSettings });
+        appSettings = updatedSettings;
+        Swal.fire('Berhasil', 'Toleransi keterlambatan tersimpan di Google Sheets.', 'success');
+      } catch (err) {
+        Swal.fire('Gagal Menyimpan!', 'Tidak terhubung ke Google Sheets (' + err.message + '). Data TIDAK disimpan.', 'error');
+      }
     }
 
     function loadLokasiForm() {
@@ -1414,15 +1468,23 @@
       document.getElementById('setRadius').value = st.radiusMeter;
     }
 
-    function saveLokasi(e) {
+    async function saveLokasi(e) {
       e.preventDefault();
-      const st = getSettings();
-      st.latSekolah = parseFloat(document.getElementById('setLat').value);
-      st.lngSekolah = parseFloat(document.getElementById('setLng').value);
-      st.radiusMeter = parseInt(document.getElementById('setRadius').value);
-      localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(st));
-      postToGAS({ action: 'syncSettings', settings: st }).catch(console.error);
-      Swal.fire('Berhasil', 'Koordinat lokasi sekolah tersimpan & tersinkron ke semua perangkat.', 'success');
+      const updatedSettings = {
+        ...getSettings(),
+        latSekolah: parseFloat(document.getElementById('setLat').value),
+        lngSekolah: parseFloat(document.getElementById('setLng').value),
+        radiusMeter: parseInt(document.getElementById('setRadius').value)
+      };
+
+      Swal.fire({ title: 'Menyimpan ke Server...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      try {
+        await postToGAS({ action: 'syncSettings', settings: updatedSettings });
+        appSettings = updatedSettings;
+        Swal.fire('Berhasil', 'Koordinat lokasi sekolah tersimpan di Google Sheets.', 'success');
+      } catch (err) {
+        Swal.fire('Gagal Menyimpan!', 'Tidak terhubung ke Google Sheets (' + err.message + '). Data TIDAK disimpan.', 'error');
+      }
     }
 
     function getCurrentAdminLocation() {
@@ -1626,7 +1688,7 @@
       }
     }
 
-    function processAbsensi() {
+    async function processAbsensi() {
       const st = getSettings();
       if (userLocation.distance > st.radiusMeter) {
         Swal.fire('Gagal Presensi', 'Anda berada di luar radius sekolah!', 'error');
@@ -1645,18 +1707,18 @@
       const now = new Date();
       const timeStr = now.toTimeString().split(' ')[0];
       const todayStr = getTodayDateString();
-      let attendance = getAttendance();
-      let record = attendance.find(a => (a.nip === currentUser.nip || a.nama === currentUser.nama) && a.tanggal === todayStr);
+      const existingRecord = appAttendance.find(a => (a.nip === currentUser.nip || a.nama === currentUser.nama) && a.tanggal === todayStr);
 
-      if (record && record.jamMasuk && record.jamPulang && record.jamPulang !== '-') {
+      if (existingRecord && existingRecord.jamMasuk && existingRecord.jamPulang && existingRecord.jamPulang !== '-') {
         Swal.fire('Sudah Presensi', 'Anda sudah melakukan presensi masuk dan pulang hari ini. Tidak dapat mengulangi presensi.', 'warning');
         updateGuruAttendanceUIState();
         return;
       }
 
       let tipeAbsen = "";
+      let recordToSend = null;
 
-      if (!record) {
+      if (!existingRecord) {
         const guruJamMasuk = currentUser.jamMasuk || "07:00";
         const [hMasuk, mMasuk] = guruJamMasuk.split(':').map(Number);
         const limitMinutes = (hMasuk * 60) + mMasuk + st.toleransiMenit;
@@ -1667,7 +1729,7 @@
           statusMsg = "Terlambat";
         }
 
-        record = {
+        recordToSend = {
           id: 'att-' + Date.now(),
           nip: currentUser.nama,
           nama: currentUser.nama,
@@ -1677,44 +1739,65 @@
           jarak: userLocation.distance,
           status: statusMsg
         };
-        attendance.push(record);
         tipeAbsen = "Masuk";
       } else {
-        record.jamPulang = timeStr;
+        recordToSend = {
+          ...existingRecord,
+          jamPulang: timeStr
+        };
         tipeAbsen = "Pulang";
       }
 
-      localStorage.setItem(STORAGE_ATTENDANCE, JSON.stringify(attendance));
+      Swal.fire({ title: 'Mengirim Presensi ke Server...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-      stopCamera();
-      updateGuruAttendanceUIState();
-
-      const gasUrl = getGASUrl();
-      if (gasUrl) {
-        postToGAS({
+      try {
+        // Wajib berhasil terkirim ke Google Sheets terlebih dahulu!
+        await postToGAS({
           action: 'absen',
-          id: record.id, nip: record.nip, nama: record.nama,
-          tanggal: record.tanggal, jamMasuk: record.jamMasuk,
-          jamPulang: record.jamPulang, jarak: record.jarak, status: record.status
-        }).catch(err => console.error(err));
-      }
+          id: recordToSend.id,
+          nip: recordToSend.nip,
+          nama: recordToSend.nama,
+          tanggal: recordToSend.tanggal,
+          jamMasuk: recordToSend.jamMasuk,
+          jamPulang: recordToSend.jamPulang,
+          jarak: recordToSend.jarak,
+          status: recordToSend.status
+        });
 
-      Swal.fire({
-        icon: 'success',
-        title: `Presensi ${tipeAbsen} Berhasil!`,
-        html: `Waktu ${tipeAbsen}: <b>${timeStr}</b><br>Status: <b>${record.status}</b><br>Jarak: ${record.jarak}m`
-      });
+        // Perbarui memori aktif setelah server mengonfirmasi sukses
+        if (!existingRecord) {
+          appAttendance.push(recordToSend);
+        } else {
+          appAttendance = appAttendance.map(a => a.id === existingRecord.id ? recordToSend : a);
+        }
 
-      const waText = `*KONFIRMASI PRESENSI ${tipeAbsen.toUpperCase()} EDUABSEN*
+        stopCamera();
+        updateGuruAttendanceUIState();
+
+        Swal.fire({
+          icon: 'success',
+          title: `Presensi ${tipeAbsen} Berhasil!`,
+          html: `Tersimpan di Database.<br>Waktu ${tipeAbsen}: <b>${timeStr}</b><br>Status: <b>${recordToSend.status}</b><br>Jarak: ${recordToSend.jarak}m`
+        });
+
+        const waText = `*KONFIRMASI PRESENSI ${tipeAbsen.toUpperCase()} EDUABSEN*
 
 Nama: ${currentUser.nama}
 Hari/Tgl: ${todayName}, ${todayStr}
-Jam Masuk: ${record.jamMasuk}
-Jam Pulang: ${record.jamPulang}
-Status: ${record.status}`;
-      const waUrl = `https://wa.me/${currentUser.wa}?text=${encodeURIComponent(waText)}`;
-      document.getElementById('btnWaDirect').href = waUrl;
-      document.getElementById('waShareCard').classList.remove('d-none');
+Jam Masuk: ${recordToSend.jamMasuk}
+Jam Pulang: ${recordToSend.jamPulang}
+Status: ${recordToSend.status}`;
+        const waUrl = `https://wa.me/${currentUser.wa}?text=${encodeURIComponent(waText)}`;
+        document.getElementById('btnWaDirect').href = waUrl;
+        document.getElementById('waShareCard').classList.remove('d-none');
+      } catch (err) {
+        // Jika gagal terhubung, GAGALKAN presensi dan JANGAN simpan ke LocalStorage
+        Swal.fire({
+          icon: 'error',
+          title: 'Presensi Gagal!',
+          text: 'Tidak terhubung ke Google Sheets (' + err.message + '). Data TIDAK disimpan. Pastikan koneksi internet lancar dan coba lagi.'
+        });
+      }
     }
 
     function loadGuruRiwayat() {
@@ -1769,14 +1852,11 @@ Status: ${record.status}`;
     async function saveGASUrl() {
       const url = document.getElementById('gasUrlInput').value.trim();
       localStorage.setItem(STORAGE_GAS_URL, url);
-      updateConnectionBadge();
       bsModalGAS.hide();
-      if (url || getGASUrl()) {
-        Swal.fire({ title: 'Menghubungkan...', didOpen: () => Swal.showLoading() });
-        await syncFromGAS(false);
-        Swal.fire('Terhubung!', 'Berhasil terhubung ke Google Sheets.', 'success');
-      } else {
-        Swal.fire('Mode Lokal', 'Menggunakan LocalStorage.', 'info');
+      Swal.fire({ title: 'Menghubungkan...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      const ok = await syncFromGAS(false);
+      if (ok) {
+        Swal.fire('Terhubung!', 'Berhasil terhubung langsung ke Google Sheets.', 'success');
       }
     }
   </script>

@@ -391,13 +391,13 @@
             <i class="fa-solid fa-user-check"></i>
           </div>
           <div class="brand-text">
-            <h1>EduAbsen</h1>
+            <h1>Al Yusdah</h1>
             <p>Presensi Guru</p>
           </div>
         </div>
-        <button type="button" class="btn-close-sidebar" id="closeSidebarBtn" onclick="toggleSidebar()" title="Tutup Menu">
+        <!-- <button type="button" class="btn-close-sidebar" id="closeSidebarBtn" onclick="toggleSidebar()" title="Tutup Menu">
           <i class="bi bi-x-lg"></i>
-        </button>
+        </button> -->
       </div>
 
       <ul class="nav-menu">
@@ -851,7 +851,7 @@
     // =========================================================================
     // URL WEB APP GOOGLE APPS SCRIPT (/exec) TERINTEGRASI LANGSUNG (STRICT ONLINE)
     // =========================================================================
-    const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbwc4TKJkwFRXHs1Tb6RfuCt_XwqXPB0me0xornSJ1nEe4YnfGX5qiCqqnebJq2-6Hti6A/exec';
+    const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbzeSu4nM8RqkDRVdFHWrqgFeoocUmKroR82h_2_DIXvqnXR9FNm6LBe89rEx5YegyFHdA/exec';
 
     const DEFAULT_SETTINGS = {
       toleransiMenit: 15,
@@ -865,6 +865,12 @@
     let appAttendance = [];
     let appSettings = { ...DEFAULT_SETTINGS };
     let isServerConnected = false;
+    let lastSyncError = '';
+    const safeSS = {
+      get: k => { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
+      set: (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) {} },
+      del: k => { try { sessionStorage.removeItem(k); } catch (e) {} }
+    };
 
     let currentUser = null;
     let currentLoginRole = 'guru';
@@ -935,7 +941,7 @@
               const freshUser = getUsers().find(u => u.id === currentUser.id || u.nama === currentUser.nama);
               if (freshUser) {
                 currentUser = freshUser;
-                sessionStorage.setItem('eduabsen_session', JSON.stringify(currentUser));
+                safeSS.set('eduabsen_session', JSON.stringify(currentUser));
                 checkTodayTeacherSchedule();
               }
               calculateDistance();
@@ -945,7 +951,7 @@
         }
       }, 15000);
 
-      const savedUser = sessionStorage.getItem('eduabsen_session');
+      const savedUser = safeSS.get('eduabsen_session');
       if (savedUser && isServerConnected) {
         currentUser = JSON.parse(savedUser);
         renderViewForUser();
@@ -953,12 +959,45 @@
     };
 
     function getGASUrl() {
-      const overrideUrl = (localStorage.getItem(STORAGE_GAS_URL) || '').trim();
+      let overrideUrl = '';
+      try { overrideUrl = (localStorage.getItem(STORAGE_GAS_URL) || '').trim(); } catch (e) {}
       if (overrideUrl) return overrideUrl;
       if (DEFAULT_GAS_URL && !DEFAULT_GAS_URL.includes('GANTI_DENGAN_URL_GAS_ANDA')) {
         return DEFAULT_GAS_URL.trim();
       }
       return '';
+    }
+
+    // fetch dengan timeout + percobaan ulang otomatis (penting untuk sinyal HP yang lemah)
+    async function fetchWithRetry(url, options, tries = 3, timeoutMs = 20000) {
+      let lastErr;
+      for (let i = 1; i <= tries; i++) {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+        try {
+          const res = await fetch(url, { ...options, signal: ctrl.signal });
+          clearTimeout(timer);
+          return res;
+        } catch (err) {
+          clearTimeout(timer);
+          lastErr = err.name === 'AbortError' ? new Error('Waktu tunggu habis (sinyal lemah/server lambat)') : err;
+          if (i < tries) await new Promise(r => setTimeout(r, 1200 * i));
+        }
+      }
+      throw lastErr;
+    }
+
+    // Baca respons sebagai teks lalu parse JSON; kalau yang datang HTML (halaman login Google / error), beri pesan jelas
+    async function parseGASResponse(res) {
+      const text = await res.text();
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        if (/<html|<!doctype/i.test(text)) {
+          throw new Error('Server mengirim halaman HTML, bukan data. Deployment GAS kemungkinan belum diatur "Anyone" atau belum di-deploy ulang sebagai versi baru.');
+        }
+        throw new Error('Respons server tidak valid');
+      }
     }
 
     function updateConnectionBadge(connected) {
@@ -981,12 +1020,13 @@
         return false;
       }
       try {
-        const res = await fetch(`${gasUrl}?action=getData&_t=${Date.now()}`, {
+        const res = await fetchWithRetry(`${gasUrl}?action=getData&_t=${Date.now()}`, {
           method: 'GET',
-          redirect: 'follow'
-        });
+          redirect: 'follow',
+          cache: 'no-store'
+        }, silent ? 1 : 3);
         if (!res.ok) throw new Error('HTTP Error ' + res.status);
-        const json = await res.json();
+        const json = await parseGASResponse(res);
         if (json.status === 'error') throw new Error(json.message || 'Server Error');
 
         appUsers = Array.isArray(json.users) ? json.users : [];
@@ -1005,13 +1045,14 @@
         return true;
       } catch (err) {
         console.error('GAS Sync Error:', err);
+        lastSyncError = err.message;
         isServerConnected = false;
         updateConnectionBadge(false);
         if (!silent) {
           Swal.fire({
             icon: 'error',
             title: 'Gagal Terhubung ke Database',
-            text: 'Koneksi ke Google Sheets gagal. Data tidak disimpan secara lokal. Pastikan internet aktif dan Deployment GAS diatur ke "Anyone".'
+            text: 'Koneksi ke Google Sheets gagal. Detail: ' + err.message
           });
         }
         return false;
@@ -1023,16 +1064,16 @@
       if (!gasUrl) {
         throw new Error('URL Google Apps Script belum diatur.');
       }
-      const res = await fetch(gasUrl, {
+      const res = await fetchWithRetry(gasUrl, {
         method: 'POST',
         redirect: 'follow',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload)
-      });
+      }, 2, 30000);
       if (!res.ok) {
         throw new Error('Gagal mengirim data ke server (HTTP ' + res.status + ')');
       }
-      const json = await res.json();
+      const json = await parseGASResponse(res);
       if (json.status !== 'success') {
         throw new Error(json.message || 'Server gagal memproses permintaan.');
       }
@@ -1082,7 +1123,7 @@
         Swal.fire({
           icon: 'error',
           title: 'Gagal Terhubung!',
-          text: 'Tidak dapat terhubung ke server Google Sheets. Periksa koneksi internet atau pengaturan URL Web App GAS Anda.'
+          text: 'Tidak dapat terhubung ke server Google Sheets. Detail: ' + lastSyncError
         });
         return;
       }
@@ -1112,12 +1153,12 @@
       }
 
       currentUser = found;
-      sessionStorage.setItem('eduabsen_session', JSON.stringify(currentUser));
+      safeSS.set('eduabsen_session', JSON.stringify(currentUser));
       renderViewForUser();
     }
 
     function logout() {
-      sessionStorage.removeItem('eduabsen_session');
+      safeSS.del('eduabsen_session');
       currentUser = null;
       stopCamera();
       document.getElementById('adminSection').classList.add('d-none');
@@ -1845,13 +1886,13 @@ Status: ${recordToSend.status}`;
     }
 
     function openGASConfigModal() {
-      document.getElementById('gasUrlInput').value = localStorage.getItem(STORAGE_GAS_URL) || '';
+      try { document.getElementById('gasUrlInput').value = localStorage.getItem(STORAGE_GAS_URL) || ''; } catch (e) {}
       bsModalGAS.show();
     }
 
     async function saveGASUrl() {
       const url = document.getElementById('gasUrlInput').value.trim();
-      localStorage.setItem(STORAGE_GAS_URL, url);
+      try { localStorage.setItem(STORAGE_GAS_URL, url); } catch (e) {}
       bsModalGAS.hide();
       Swal.fire({ title: 'Menghubungkan...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
       const ok = await syncFromGAS(false);
